@@ -1,0 +1,49 @@
+language: python
+
+matrix:
+  include:
+  - python: 3.7
+    dist: xenial
+    sudo: true
+  - python: 3.6
+  fast_finish: true
+
+cache:
+  apt: true
+
+addons:
+  apt:
+    packages:
+      - libgl1-mesa-dev  # For OpenGL
+      - swig
+      - wget
+      - gnuplot
+
+
+install:
+  - pip install -r requirements_dev.txt
+  - |
+    wget http://lvserver.ugent.be/xraylib/xraylib-3.3.0.tar.gz
+    tar xfz xraylib-3.3.0.tar.gz
+    cd xraylib-3.3.0
+    ./configure --enable-python --prefix=$VIRTUAL_ENV
+    make
+    make install
+    cd ..
+
+script: python setup.py test
+
+deploy:
+  provider: pypi
+  distributions: sdist bdist_wheel
+  user: __token__
+  on:
+    tags: true
+    repo: DiamondLightSource/python-zocalo-pymca
+    python: 3.7
+  password:
+    secure: ky4NTjLWyUG671hCAj0eWaf41T0iERR0QEVaVKj1gnvBlhqHgL48RRgAXnJ5vhMWaeho4B3GBTyLYIE9WiiOp39gksdi0qpQQWaXN+lgsYmFq2ID0Ld4alnWvKjEBMeOs5vYYE3V1t4vLDmBQI3IZEKThrfugxKq7+tkScyJSs2fL/abSdS1cGhcoCh0HKLiXfxicbJKtq9qn5WqK3Al3yRGZKuKhJ8oDGR/Q/GfX32xw0Eubc5KwZX8NovUFY+rk8TmXlqvSawzpq42AfLvK1UxtNjctGlhrCf0kKURgyWloqGET79WWQH8FsBbQLbPlUNcb6q5kubRHt9NlKGmRUG9VHDvtv6nfVqhpriBZcS8phDUI4WTMnLv1uuI8clALAQsZ5B8J8rznmNGf/qaYHgnTYCiMiKX40YnkzWFaiZkOsRylB6q4mBqZF1MF5A0r+kViJwe8ZWm3wbV3o5Eb3aYNA9SgoAYGVCX/Ozw+huk/Azb07OyGLAOWx0zyU6bQ4ygdmd8E3eqMCZtoQjw/Vcc/tR4PakTAZLNQH3QPRnecC/pkKw1W51FZWE2/uRhIcg04jY/DsiwDysg8/9CvEk8nUaAC9k1Rg4a4p2XCZitdUVuEMYLdG88jjRjRKImX3lBJrRxMfrsKxIBJ09igdqwFAk85qY0hIXIMhCZsC0=
+
+branches:
+  only:
+    - master

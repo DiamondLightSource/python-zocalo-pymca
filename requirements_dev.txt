@@ -1,0 +1,9 @@
+bump2version
+pip
+pytest
+pytest-runner
+wheel
+zocalo
+workflows
+setuptools
+PyMca5
