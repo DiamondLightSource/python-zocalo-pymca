@@ -10,6 +10,16 @@ import workflows.recipe
 from workflows.services.common_service import CommonService
 from .internals import plot_fluorescence_spectrum
 
+PARAMETERS = [
+        'inputFile',
+        'omega',
+        'transmission',
+        'samplexyz',
+        'acqTime',
+        'energy',
+        'xfeFluorescenceSpectrumID'
+        ]
+
 class DLSPyMcaFitter(CommonService):
     """A service that takes an XRF dataset and sends it to PyMca for fitting"""
 
@@ -30,14 +40,7 @@ class DLSPyMcaFitter(CommonService):
 
     def pymca_fitter_call(self, rw, header, message):
         """Call dispatcher"""
-        args = list()
-        args.append(rw.recipe_step.get("parameters", {}).get("inputFile"))
-        args.append(rw.recipe_step.get("parameters", {}).get("omega"))
-        args.append(rw.recipe_step.get("parameters", {}).get("transmission"))
-        args.append(rw.recipe_step.get("parameters", {}).get("samplexyz"))
-        args.append(rw.recipe_step.get("parameters", {}).get("acqTime"))
-        args.append(rw.recipe_step.get("parameters", {}).get("energy"))
-        args.append(rw.recipe_step.get("parameters", {}).get("xfeFluorescenceSpectrumID"))
+        args = map(lambda param: rw.recipe_step.get("parameters", {}).get(param), PARAMETERS)
 
         self.log.debug("Commands: %s", ' '.join(args))
         try:

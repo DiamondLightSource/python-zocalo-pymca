@@ -270,7 +270,7 @@ set style line 2 lt 39
 plot '{inputFile}' every ::0::{cutoffline} using 1:2 with lines ls 1, '{inputFile}' every ::{cutoffline} using 1:2 with lines ls 2
 """
 
-    process_rv = subprocess.run(['/usr/bin/gnuplot'], input=gnuplot_input, capture_output=True, text=True, encoding='utf8')
+    process_rv = subprocess.run(['/usr/bin/gnuplot'], input=gnuplot_input, universal_newlines=True, encoding='utf8')
 
     pure_path = PurePath(inputFile).parts
     currentvisit = pure_path[5]
