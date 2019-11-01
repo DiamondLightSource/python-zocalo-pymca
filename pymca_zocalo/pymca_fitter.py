@@ -40,7 +40,7 @@ class DLSPyMcaFitter(CommonService):
 
     def pymca_fitter_call(self, rw, header, message):
         """Call dispatcher"""
-        args = map(lambda param: rw.recipe_step.get("parameters", {}).get(param), PARAMETERS)
+        args = list(map(lambda param: rw.recipe_step.get("parameters", {}).get(param), PARAMETERS))
 
         self.log.debug("Commands: %s", ' '.join(args))
         try:
