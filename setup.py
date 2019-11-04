@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="pymca-zocalo",
-    version="0.1.0",
+    version="0.2.0",
     description="PyMca components for automated data processing with Zocalo at Diamond Light Source",
     author="Tom Schoonjans",
     author_email="Tom.Schoonjans@diamond.ac.uk",
