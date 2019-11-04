@@ -1,0 +1,20 @@
+{
+	"1": ["Some clever comment goes here"],
+	"1": {
+		"service": "DLS PyMca Fitter",
+		"queue": "pymca.fitter",
+		"parameters": {
+			"inputFile": "/dls/i04/data/2019/cm23004-2/test/20190513_11_26_46_Cu.dat",
+			"inputFile": "/dls/science/users/awf63395/pymca-zocalo-experiment/test/20190513_11_26_46_Cu.dat",
+			"omega": "25",
+			"transmission": "100",
+			"samplexyz": "1.0",
+			"acqTime": "4.0",
+			"energy": "14000",
+			"xfeFluorescenceSpectrumID": "544"
+		}
+	},
+	"start": [
+		[1, []]
+	]
+}
