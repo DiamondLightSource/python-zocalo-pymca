@@ -1,7 +1,5 @@
 from __future__ import absolute_import, division, print_function
 
-import logging
-
 import workflows.recipe
 from workflows.services.common_service import CommonService
 from .internals import plot_fluorescence_spectrum
