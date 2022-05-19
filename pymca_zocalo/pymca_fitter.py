@@ -42,7 +42,7 @@ class DLSPyMcaFitter(CommonService):
         try:
             plot_fluorescence_spectrum(*args)
         except Exception as e:
-            self.log.warning(f"Error running PyMca {e}", exc_info=True)
+            self.log.warning(f"Error running PyMca: {e}", exc_info=True)
             rw.transport.ack(header)
             return
         self.log.info("%s was successfully processed", rw.recipe_step.get("parameters", {}).get("inputFile"))
