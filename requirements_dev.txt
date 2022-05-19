@@ -1,9 +1,10 @@
 bump2version
 pip
+pymca
 pytest
 pytest-runner
-wheel
-zocalo
-workflows
 setuptools
-PyMca5
+wheel
+workflows
+xraylib
+zocalo

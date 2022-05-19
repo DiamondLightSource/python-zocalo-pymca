@@ -17,7 +17,13 @@ setup(
         "Programming Language :: Python :: 3.8",
     ],
     packages=["pymca_zocalo"],
-    install_requires=["workflows>=1.7", "zocalo", "setuptools", "PyMca5"],
+    install_requires=[
+        "pymca",
+        "setuptools",
+        "workflows>=1.7",
+        "xraylib",
+        "zocalo",
+    ],
     entry_points={
         "workflows.services": [
             "DLSPyMcaFitter = pymca_zocalo:DLSPyMcaFitter",
