@@ -5,7 +5,7 @@ setup(
     version="0.2.0",
     description="PyMca components for automated data processing with Zocalo at Diamond Light Source",
     author="Tom Schoonjans",
-    author_email="Tom.Schoonjans@diamond.ac.uk",
+    author_email="DataAnalysis@diamond.ac.uk",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
