@@ -1,11 +1,5 @@
 from __future__ import absolute_import, division, print_function
 
-import errno
-import os
-import re
-import sys
-import traceback
-
 import workflows.recipe
 from workflows.services.common_service import CommonService
 from .internals import plot_fluorescence_spectrum
@@ -46,11 +40,8 @@ class DLSPyMcaFitter(CommonService):
         try:
             plot_fluorescence_spectrum(*args)
         except Exception as e:
-            exc_info = sys.exc_info()
-            self.log.error("Error running PyMca: {}\n{}".format(str(e), traceback.format_exception(*exc_info)))
-
-            rw.transport.nack(header)
+            self.log.warning(f"Error running PyMca: {e}", exc_info=True)
+            rw.transport.ack(header)
             return
         self.log.info("%s was successfully processed", rw.recipe_step.get("parameters", {}).get("inputFile"))
         rw.transport.ack(header)
-
