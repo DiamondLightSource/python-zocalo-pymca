@@ -10,3 +10,5 @@ RUN python -m pip install --upgrade --no-cache-dir -r requirements.txt
 COPY . .
 
 RUN python -m pip install --no-cache-dir .
+
+CMD zocalo.service -s DLSPyMcaFitter
