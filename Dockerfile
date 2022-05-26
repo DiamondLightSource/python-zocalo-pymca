@@ -1,6 +1,6 @@
 FROM python:3.10
 
-WORKDIR /home/zocalo/pymca
+WORKDIR /pymca
 
 RUN python -m pip install --upgrade pip
 RUN python -m pip install --upgrade --no-cache-dir cython numpy setuptools wheel
