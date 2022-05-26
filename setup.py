@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
 setup(
     name="pymca-zocalo",
@@ -16,10 +16,10 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
-    packages=["pymca_zocalo"],
+    packages=find_packages("src"),
+    package_dir={"": "src"},
     install_requires=[
         "pymca",
-        "setuptools",
         "workflows>=1.7",
         "xraylib",
         "zocalo",
