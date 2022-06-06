@@ -21,7 +21,7 @@ setup(
     install_requires=[
         "pymca",
         "workflows>=1.7",
-        "xraylib",
+        "xraylib<4.1.0",
         "zocalo",
     ],
     entry_points={
