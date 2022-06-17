@@ -55,7 +55,10 @@ RUN conda env create --prefix $ENV_PREFIX --file /tmp/environment.yaml --force
 RUN conda clean --all --yes
 
 # actually install pymca_zocalo
-COPY . .
+USER root
+COPY  . .
+RUN chown $UID:$GID -R .
+USER $USER
 RUN conda activate $ENV_PREFIX && \
     python -m pip install --user --no-cache-dir --no-dependencies . && \
     python -c "import pymca_zocalo" && \
