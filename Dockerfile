@@ -66,4 +66,4 @@ RUN conda activate $ENV_PREFIX && \
 
 ENTRYPOINT [ "/usr/local/bin/docker-entrypoint.sh" ]
 
-CMD zocalo.service -s DLSPyMcaFitter
+CMD ["zocalo.service", "-s", "DLSPyMcaFitter"]
