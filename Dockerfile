@@ -1,11 +1,11 @@
-FROM ubuntu:16.04
+FROM ubuntu:20.04
 
 # Make bash the default login shell, i.e. supported
 # by the conda init command
 SHELL [ "/bin/bash", "--login", "-c" ]
 
 # Install wget
-RUN apt update && apt upgrade && apt install wget -y
+RUN apt update && apt upgrade -y && apt install wget -y
 
 # Create a non-root user
 ARG username=zocalo
@@ -53,6 +53,13 @@ ENV ENV_PREFIX $PROJECT_DIR/env
 RUN conda update --name base --channel defaults conda --yes
 RUN conda env create --prefix $ENV_PREFIX --file /tmp/environment.yaml --force
 RUN conda clean --all --yes
+
+# actually install pymca_zocalo
+COPY . .
+RUN conda activate $ENV_PREFIX && \
+    python -m pip install --user --no-cache-dir --no-dependencies . && \
+    python -c "import pymca_zocalo" && \
+    conda deactivate
 
 ENTRYPOINT [ "/usr/local/bin/docker-entrypoint.sh" ]
 
