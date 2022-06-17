@@ -59,9 +59,13 @@ USER root
 COPY  . .
 RUN chown $UID:$GID -R .
 USER $USER
+RUN which python
 RUN conda activate $ENV_PREFIX && \
     python -m pip install --user --no-cache-dir --no-dependencies . && \
     python -c "import pymca_zocalo" && \
+    conda deactivate
+RUN conda activate $ENV_PREFIX && \
+    zocalo.service -h && \
     conda deactivate
 
 ENTRYPOINT [ "/usr/local/bin/docker-entrypoint.sh" ]
