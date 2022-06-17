@@ -5,7 +5,7 @@ FROM ubuntu:20.04
 SHELL [ "/bin/bash", "--login", "-c" ]
 
 # Install wget
-RUN apt update && apt upgrade -y && apt install wget -y
+RUN apt update && apt upgrade -y && apt install curl wget -y
 
 # Create a non-root user
 ARG username=zocalo
