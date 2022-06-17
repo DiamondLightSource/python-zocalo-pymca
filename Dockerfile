@@ -59,8 +59,8 @@ USER root
 COPY  . .
 RUN chown $UID:$GID -R .
 USER $USER
-RUN which python
 RUN conda activate $ENV_PREFIX && \
+    which python && \
     python -m pip install --user --no-cache-dir --no-dependencies . && \
     python -c "import pymca_zocalo" && \
     conda deactivate
