@@ -7,28 +7,28 @@ SHELL [ "/bin/bash", "--login", "-c" ]
 # Install wget
 RUN apt update && apt upgrade -y && apt install wget -y
 
-# # Create a non-root user
-# ARG username=zocalo
-# ARG uid=1000
-# ARG gid=100
-# ENV USER $username
-# ENV UID $uid
-# ENV GID $gid
-# ENV HOME /home/$USER
-# RUN adduser --disabled-password \
-#     --gecos "Non-root user" \
-#     --uid $UID \
-#     --gid $GID \
-#     --home $HOME \
-#     $USER
+# Create a non-root user
+ARG username=zocalo
+ARG uid=1000
+ARG gid=100
+ENV USER $username
+ENV UID $uid
+ENV GID $gid
+ENV HOME /home/$USER
+RUN adduser --disabled-password \
+    --gecos "Non-root user" \
+    --uid $UID \
+    --gid $GID \
+    --home $HOME \
+    $USER
 
 COPY environment.yaml requirements.txt /tmp/
-# RUN chown $UID:$GID /tmp/environment.yaml /tmp/requirements.txt
+RUN chown $UID:$GID /tmp/environment.yaml /tmp/requirements.txt
 COPY docker-entrypoint.sh /usr/local/bin/
-# RUN chown $UID:$GID /usr/local/bin/docker-entrypoint.sh && \
-RUN chmod u+x /usr/local/bin/docker-entrypoint.sh
+RUN chown $UID:$GID /usr/local/bin/docker-entrypoint.sh && \
+    chmod u+x /usr/local/bin/docker-entrypoint.sh
 
-# USER $USER
+USER $USER
 # install miniconda as the non-root user
 ENV MINICONDA_VERSION py39_4.12.0
 ENV CONDA_DIR $HOME/miniconda3
@@ -57,7 +57,7 @@ RUN conda clean --all --yes
 # actually install pymca_zocalo
 COPY . .
 RUN conda activate $ENV_PREFIX && \
-    python -m pip install --no-cache-dir --no-dependencies . && \
+    python -m pip install --user --no-cache-dir --no-dependencies . && \
     python -c "import pymca_zocalo" && \
     conda deactivate
 
