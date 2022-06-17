@@ -61,7 +61,7 @@ RUN chown $UID:$GID -R .
 USER $USER
 RUN conda activate $ENV_PREFIX && \
     which python && \
-    python -m pip install --user --no-cache-dir --no-dependencies . && \
+    python -m pip install --no-cache-dir --no-dependencies . && \
     python -c "import pymca_zocalo" && \
     conda deactivate
 RUN conda activate $ENV_PREFIX && \
