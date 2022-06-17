@@ -1,5 +1,5 @@
 numpy
 pymca
 workflows>=1.7
-xraylib<4.1.0
+xraylib
 zocalo
