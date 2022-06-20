@@ -62,9 +62,10 @@ USER $USER
 RUN conda activate $ENV_PREFIX && \
     which python && \
     python -m pip install --no-cache-dir --no-dependencies . && \
-    python -c "import pymca_zocalo" && \
+    python -c "import pymca_zocalo; print(pymca_zocalo.__file__)" && \
     conda deactivate
 RUN conda activate $ENV_PREFIX && \
+    python -c "import pymca_zocalo; print(pymca_zocalo.__file__)" && \
     zocalo.service -h && \
     conda deactivate
 
