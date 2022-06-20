@@ -5,7 +5,7 @@ FROM ubuntu:20.04
 SHELL [ "/bin/bash", "--login", "-c" ]
 
 # Install wget
-RUN apt update && apt upgrade -y && apt install curl wget -y
+RUN apt update && apt upgrade -y && apt install curl gcc git swig wget -y
 
 # Create a non-root user
 ARG username=zocalo
@@ -53,6 +53,14 @@ ENV ENV_PREFIX $PROJECT_DIR/env
 RUN conda update --name base --channel defaults conda --yes
 RUN conda env create --prefix $ENV_PREFIX --file /tmp/environment.yaml --force
 RUN conda clean --all --yes
+
+# install our own version of xraylib
+RUN git clone -b rm-analytics --single-branch https://github.com/DiamondLightSource/xraylib.git
+RUN conda activate $ENV_PREFIX && \
+    cd xraylib && \
+    pip install . -vv && \
+    python -c "import pkg_resources; pkg_resources.require('xraylib')" \
+    conda deactivate
 
 # actually install pymca_zocalo
 USER root
