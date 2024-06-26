@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 # Make bash the default login shell, i.e. supported
 # by the conda init command
@@ -51,7 +51,7 @@ WORKDIR $PROJECT_DIR
 # build the conda environment
 ENV ENV_PREFIX $PROJECT_DIR/env
 RUN conda update --name base --channel defaults conda --yes
-RUN conda env create --prefix $ENV_PREFIX --file /tmp/environment.yaml --force
+RUN conda env create --prefix $ENV_PREFIX --file /tmp/environment.yaml
 RUN conda clean --all --yes
 
 # actually install pymca_zocalo
