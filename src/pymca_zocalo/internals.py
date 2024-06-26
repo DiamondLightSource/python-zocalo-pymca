@@ -2,9 +2,6 @@ import os
 from pathlib import PurePath, Path
 import xraylib as xrl
 import shutil
-import getpass
-import smtplib
-from email.message import EmailMessage
 
 from PyMca5.PyMca import McaAdvancedFitBatch
 
@@ -206,21 +203,6 @@ def run_auto_pymca(SpectrumFile, energy, transmission, acqTime, CFGFile=None, pe
 
     html = parse_raw_fluoro(rawDatFile, energy, transmission, acqTime)
 
-    if getpass.getuser() == 'gda2' or getpass.getuser() == 'awf63395':
-        with open(ResultsFile) as f:
-            msg = EmailMessage()
-            msg.set_content(f.read())
-
-        msg['Subject'] = "pymca zocalo: {}".format(SpectrumFile)
-        msg['From'] = "donotreply@pymca-zocalo.diamond.ac.uk"
-        if getpass.getuser() == 'gda2':
-            msg['To'] = 'Dave.Hall@diamond.ac.uk'
-        else:
-            msg['To'] = 'Tom.Schoonjans@diamond.ac.uk'
-
-        with smtplib.SMTP('localhost') as smtp:
-            smtp.send_message(msg)
-
     return html
 
 
@@ -231,20 +213,6 @@ def plot_fluorescence_spectrum(inputFile, omega, transmission, samplexyz, acqTim
 
     outputPymca = run_auto_pymca(MCAFile, energy, transmission, acqTime, CFGFile=CFGFile, peaksFile=peaksFile)
     outputPymca = '\n'.join(outputPymca)
-
-    if getpass.getuser() == 'gda2' or getpass.getuser() == 'awf63395':
-        msg = EmailMessage()
-        msg.set_content(outputPymca)
-
-        msg['Subject'] = f"pymca zocalo: {inputFile} trans: {transmission} time {acqTime} energy {energy}"
-        msg['From'] = "donotreply@pymca-zocalo.diamond.ac.uk"
-        if getpass.getuser() == 'gda2':
-            msg['To'] = 'juan.sanchez-weatherby@diamond.ac.uk, mark.williams@diamond.ac.uk'
-        else:
-            msg['To'] = 'Tom.Schoonjans@diamond.ac.uk'
-
-        with smtplib.SMTP('localhost') as smtp:
-            smtp.send_message(msg)
 
     outFile = os.path.splitext(inputFile)[0] + '.png'
     cutoffenergy = float(energy) - 1000.0
