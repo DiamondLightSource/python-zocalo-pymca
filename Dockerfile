@@ -30,7 +30,7 @@ RUN chown $UID:$GID /usr/local/bin/docker-entrypoint.sh && \
 
 USER $USER
 # install miniconda as the non-root user
-ENV MINICONDA_VERSION py39_4.12.0
+ENV MINICONDA_VERSION py312_24.4.0-0
 ENV CONDA_DIR $HOME/miniconda3
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-$MINICONDA_VERSION-Linux-x86_64.sh -O ~/miniconda.sh && \
     chmod +x ~/miniconda.sh && \
@@ -53,14 +53,6 @@ ENV ENV_PREFIX $PROJECT_DIR/env
 RUN conda update --name base --channel defaults conda --yes
 RUN conda env create --prefix $ENV_PREFIX --file /tmp/environment.yaml --force
 RUN conda clean --all --yes
-
-# install our own version of xraylib
-RUN git clone -b rm-analytics --single-branch https://github.com/DiamondLightSource/xraylib.git
-RUN conda activate $ENV_PREFIX && \
-    cd xraylib && \
-    pip install . -vv && \
-    python -c "import pkg_resources; pkg_resources.require('xraylib')" \
-    conda deactivate
 
 # actually install pymca_zocalo
 USER root
