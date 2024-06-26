@@ -259,7 +259,6 @@ def plot_fluorescence_spectrum(
     samplexyz,
     acqTime,
     energy,
-    xfeFluorescenceSpectrumID,
     CFGFile=None,
     peaksFile=None,
 ):

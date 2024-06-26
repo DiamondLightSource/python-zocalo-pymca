@@ -12,7 +12,6 @@ PARAMETERS = [
     "samplexyz",
     "acqTime",
     "energy",
-    "xfeFluorescenceSpectrumID",
 ]
 
 
