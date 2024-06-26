@@ -109,12 +109,15 @@ def parse_spec_fit(name):
 
 def parse_elements(energy):
     """
-    Filters a dictionary of element/edge combinations likely to be encountered in an XRF experiment and returns those that are below the given photon energy.
+    Filters a dictionary of element/edge combinations likely to be encountered in an
+     XRF experiment and returns those that are below the given photon energy.
     Args:
-        energy (float): The energy level to filter the elements by, expressed in electron volts (eV).
+        energy (float): The energy level to filter the elements by, expressed in
+         electron volts (eV).
 
     Returns:
-        str: A string representation of the filtered elements. Each element is on a new line and is formatted as 'symbol = edge'.
+        str: A string representation of the filtered elements. Each element is on
+         a new line and is formatted as 'symbol = edge'.
     """
     elements = {
         "Ti": "K",
