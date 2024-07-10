@@ -1,17 +1,16 @@
-FROM ubuntu:latest
+FROM debian:stable-slim
 
 # Make bash the default login shell, i.e. supported
 # by the conda init command
 SHELL [ "/bin/bash", "--login", "-c" ]
 
 # Install wget
-RUN apt update && apt upgrade -y && apt install curl gcc git swig wget gnuplot -y
+RUN apt update && apt upgrade -y && apt install wget gnuplot -y
 
 # Create a non-root user
 ARG username=zocalo
 ARG uid=2000
 ARG gid=100
-ARG extra_gids="300,400,500"
 ENV USER $username
 ENV UID $uid
 ENV GID $gid
@@ -31,7 +30,7 @@ RUN chown $UID:$GID /usr/local/bin/docker-entrypoint.sh && \
 
 USER $USER
 # install miniconda as the non-root user
-ENV MINICONDA_VERSION py312_24.4.0-0
+ENV MINICONDA_VERSION latest
 ENV CONDA_DIR $HOME/miniconda3
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-$MINICONDA_VERSION-Linux-x86_64.sh -O ~/miniconda.sh && \
     chmod +x ~/miniconda.sh && \
@@ -51,9 +50,9 @@ WORKDIR $PROJECT_DIR
 
 # build the conda environment
 ENV ENV_PREFIX $PROJECT_DIR/env
-RUN conda update --name base --channel defaults conda --yes
-RUN conda env create --prefix $ENV_PREFIX --file /tmp/environment.yaml
-RUN conda clean --all --yes
+RUN conda update --name base --channel defaults conda --yes && \
+    conda env create --prefix $ENV_PREFIX --file /tmp/environment.yaml && \
+    conda clean --all --yes
 
 # actually install pymca_zocalo
 USER root
@@ -64,10 +63,6 @@ RUN conda activate $ENV_PREFIX && \
     which python && \
     python -m pip install --no-cache-dir --no-dependencies . && \
     python -c "import pymca_zocalo; print(pymca_zocalo.__file__)" && \
-    conda deactivate
-RUN conda activate $ENV_PREFIX && \
-    python -c "import pymca_zocalo; print(pymca_zocalo.__file__)" && \
-    zocalo.service -h && \
     conda deactivate
 
 ENTRYPOINT [ "/usr/local/bin/docker-entrypoint.sh" ]
