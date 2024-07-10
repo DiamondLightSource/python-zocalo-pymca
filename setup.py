@@ -19,9 +19,10 @@ setup(
     packages=find_packages("src"),
     package_dir={"": "src"},
     install_requires=[
-        "pymca",
+        # pymca and xraylib required but listing here causes error when zocalo resolves environment
+        # "pymca",
         "workflows>=1.7",
-        "xraylib",
+        # "xraylib",
         "zocalo",
     ],
     entry_points={

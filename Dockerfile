@@ -1,16 +1,17 @@
-FROM ubuntu:22.04
+FROM ubuntu:latest
 
 # Make bash the default login shell, i.e. supported
 # by the conda init command
 SHELL [ "/bin/bash", "--login", "-c" ]
 
 # Install wget
-RUN apt update && apt upgrade -y && apt install curl gcc git swig wget -y
+RUN apt update && apt upgrade -y && apt install curl gcc git swig wget gnuplot -y
 
 # Create a non-root user
 ARG username=zocalo
-ARG uid=1000
+ARG uid=2000
 ARG gid=100
+ARG extra_gids="300,400,500"
 ENV USER $username
 ENV UID $uid
 ENV GID $gid
@@ -71,4 +72,4 @@ RUN conda activate $ENV_PREFIX && \
 
 ENTRYPOINT [ "/usr/local/bin/docker-entrypoint.sh" ]
 
-CMD ["zocalo.service", "-s", "DLSPyMcaFitter"]
+CMD ["zocalo.service", "-s", "DLSPyMcaFitter", "-e", "devrmq", "--rabbit-host=ws546.diamond.ac.uk"]
