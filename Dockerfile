@@ -9,4 +9,4 @@ RUN /opt/pymca/bin/python -mpip install /tmp/pymca
 
 #FROM gcr.io/distroless/python3-debian12:debug-nonroot
 #COPY --from=0 /opt/pymca /opt/pymca
-CMD ["/opt/pymca/bin/zocalo.service", "-s", "DLSPyMcaFitter"]    
+CMD ["/opt/pymca/bin/zocalo.service", "-s", "DLSPyMcaFitter"]  
