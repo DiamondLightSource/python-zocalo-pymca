@@ -276,9 +276,8 @@ def plot_fluorescence_spectrum(
 
     cutoffline = find_cut_off_energy(inputFile, cutoffenergy)
 
-    gnuplot_input = f"""set format noenhanced
-set term png size 800,600
-set title "Fluorescence Spectrum {inputFile}"
+    gnuplot_input = f"""set term png size 800,600
+set title "Fluorescence Spectrum {inputFile}" noenhanced
 set xlabel "Energy (eV)"
 set ylabel "Number of Counts"
 set xrange [0:{energy}]
