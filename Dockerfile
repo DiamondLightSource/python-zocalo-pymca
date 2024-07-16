@@ -53,7 +53,7 @@ ENV ENV_PREFIX $PROJECT_DIR/env
 RUN conda update --name base --channel defaults conda --yes && \
     conda env create --prefix $ENV_PREFIX --file /tmp/environment.yaml && \
     conda clean --all --yes
-
+ENV PATH=$ENV_PREFIX/bin:$PATH
 # actually install pymca_zocalo
 USER root
 COPY  . .
@@ -65,6 +65,6 @@ RUN conda activate $ENV_PREFIX && \
     python -c "import pymca_zocalo; print(pymca_zocalo.__file__)" && \
     conda deactivate
 
-ENTRYPOINT [ "/usr/local/bin/docker-entrypoint.sh" ]
+#ENTRYPOINT [ "/usr/local/bin/docker-entrypoint.sh" ]
 
 CMD ["zocalo.service", "-s", "DLSPyMcaFitter"]
