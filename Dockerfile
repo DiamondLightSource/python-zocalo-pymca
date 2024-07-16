@@ -9,8 +9,8 @@ RUN apt update && apt upgrade -y && apt install wget gnuplot -y
 
 # Create a non-root user
 ARG username=zocalo
-ARG uid=2000
-ARG gid=100
+ARG uid=37500
+ARG gid=37500
 ENV USER $username
 ENV UID $uid
 ENV GID $gid
