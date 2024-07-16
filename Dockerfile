@@ -10,6 +10,7 @@ COPY requirements.txt .
 RUN /opt/miniconda/bin/conda create -yp /opt/pymca -c conda-forge --file requirements.txt python
 COPY . /tmp/pymca
 RUN /opt/pymca/bin/python -mpip install /tmp/pymca --no-cache-dir --no-dependencies
+ENV HOME /home
 
 #FROM gcr.io/distroless/python3-debian12:debug-nonroot
 #COPY --from=0 /opt/pymca /opt/pymca
