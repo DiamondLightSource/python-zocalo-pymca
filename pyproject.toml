@@ -1,0 +1,11 @@
+[tool.ruff.lint]
+select = ["E", "F", "W", "C4", "I"]
+unfixable = ["F841"]
+# E501 line too long (handled by formatter)
+# E741 Ambiguous variable name (We have lots of meaningful I, L, l)
+ignore = ["E501", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+"installer/**.py" = ["I"]
+"**/__init__.py" = ["F401"]
+

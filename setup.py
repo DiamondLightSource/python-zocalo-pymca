@@ -1,8 +1,8 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
 setup(
     name="pymca-zocalo",
-    version="0.2.1",
+    version="0.3.0",
     description="PyMca components for automated data processing with Zocalo at Diamond Light Source",
     author="Tom Schoonjans",
     author_email="DataAnalysis@diamond.ac.uk",
@@ -16,12 +16,13 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
-    packages=["pymca_zocalo"],
+    packages=find_packages("src"),
+    package_dir={"": "src"},
     install_requires=[
-        "pymca",
-        "setuptools",
+        # pymca and xraylib required but listing here causes error when zocalo resolves environment
+        # "pymca",
         "workflows>=1.7",
-        "xraylib",
+        # "xraylib",
         "zocalo",
     ],
     entry_points={

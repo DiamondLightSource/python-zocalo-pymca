@@ -2,17 +2,18 @@ from __future__ import absolute_import, division, print_function
 
 import workflows.recipe
 from workflows.services.common_service import CommonService
+
 from .internals import plot_fluorescence_spectrum
 
 PARAMETERS = [
-        'inputFile',
-        'omega',
-        'transmission',
-        'samplexyz',
-        'acqTime',
-        'energy',
-        'xfeFluorescenceSpectrumID'
-        ]
+    "inputFile",
+    "omega",
+    "transmission",
+    "samplexyz",
+    "acqTime",
+    "energy",
+]
+
 
 class DLSPyMcaFitter(CommonService):
     """A service that takes an XRF dataset and sends it to PyMca for fitting"""
@@ -29,19 +30,22 @@ class DLSPyMcaFitter(CommonService):
             "pymca.fitter",
             self.pymca_fitter_call,
             acknowledgement=True,
-            log_extender=self.extend_log
+            log_extender=self.extend_log,
         )
 
     def pymca_fitter_call(self, rw, header, message):
         """Call dispatcher"""
-        args = list(map(lambda param: rw.recipe_step.get("parameters", {}).get(param), PARAMETERS))
+        args = [rw.recipe_step.get("parameters", {}).get(param) for param in PARAMETERS]
 
-        self.log.debug("Commands: %s", ' '.join(args))
+        self.log.debug("Commands: %s", " ".join(args))
         try:
             plot_fluorescence_spectrum(*args)
         except Exception as e:
             self.log.warning(f"Error running PyMca: {e}", exc_info=True)
             rw.transport.ack(header)
             return
-        self.log.info("%s was successfully processed", rw.recipe_step.get("parameters", {}).get("inputFile"))
+        self.log.info(
+            "%s was successfully processed",
+            rw.recipe_step.get("parameters", {}).get("inputFile"),
+        )
         rw.transport.ack(header)

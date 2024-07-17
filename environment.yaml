@@ -1,0 +1,10 @@
+name: zocalo-pymca
+channels:
+    - conda-forge
+dependencies:
+  - numpy
+  - pymca
+  - setuptools
+  - workflows>=1.7
+  - xraylib>=4.1.4
+  - zocalo
