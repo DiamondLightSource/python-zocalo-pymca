@@ -179,7 +179,7 @@ def run_auto_pymca(
     acqTime,
     CFGFile=None,
     peaksFile=None,
-    selection=None,
+    selection={},
 ):
     FilePrefix = os.path.splitext(os.path.basename(SpectrumFile))[0]
     file_name = os.path.basename(SpectrumFile)
@@ -278,8 +278,8 @@ def plot_fluorescence_spectrum(
     if inputFile.endswith(".dat"):
         inputFile = os.path.splitext(inputFile)[0] + ".mca"
 
-    selection = None
-    if h5path:
+    selection = {}
+    if h5py.is_hdf5(inputFile):
         root_group = "entry"
         y_data_path = "/data/data"
         selection = {"entry": root_group, "y": y_data_path}
