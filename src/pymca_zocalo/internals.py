@@ -258,10 +258,10 @@ def run_auto_pymca(
             # Replace the default energy with the beam energy
             if match := re.match(r"energy = (\d+(\.\d+)?),", line):
                 line = line.replace(match.group(1), str(energy_keV))
-            print(line, file=f2)
+            f2.write(line)
 
         if peaks is not None:
-            print(peaks, file=f2)
+            f2.write(peaks)
 
     file_path = os.path.join(DataDir, file_name)
     cfg_path = os.path.join(OutputDir, FilePrefix + ".cfg")
