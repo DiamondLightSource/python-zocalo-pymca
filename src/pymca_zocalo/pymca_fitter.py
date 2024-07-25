@@ -3,7 +3,7 @@ from __future__ import absolute_import, division, print_function
 import workflows.recipe
 from workflows.services.common_service import CommonService
 
-from .internals import plot_fluorescence_spectrum
+from .internals import run_auto_pymca
 
 
 class DLSPyMcaFitter(CommonService):
@@ -30,13 +30,13 @@ class DLSPyMcaFitter(CommonService):
 
         self.log.debug(f"pymca_fitter running with params {params}")
         try:
-            plot_fluorescence_spectrum(
+            run_auto_pymca(
                 params["inputFile"],
                 params["omega"],
                 params["transmission"],
                 params["samplexyz"],
                 params["acqTime"],
-                params["energy"],
+                float(params["energy"]),
                 CFGFile=params.get("CFGFile"),
                 peaksFile=params.get("peaksFile"),
                 h5path=params.get("h5path"),

@@ -1,12 +1,13 @@
 import os
 import re
 import shutil
-import subprocess
 from datetime import datetime
 from glob import glob
 from pathlib import Path, PurePath
 
 import h5py
+import matplotlib.pyplot as plt
+import numpy as np
 import xraylib as xrl
 from PyMca5.PyMca import McaAdvancedFitBatch
 
@@ -22,37 +23,21 @@ LINE_MAPPER = {
 
 
 # edge is here the beam energy...
-def parse_raw_fluoro(fn, edge, trans, acqTime):
+def parse_raw_fluoro(counts, channel_energy, beam_energy, results_file):
     rv = []
-
-    with open(fn) as f:
-        total_count = 0
-        background_count = 0
-        for i, l in enumerate(f):
-            if i > 2:
-                e, cts = l.strip().split()
-                total_count += float(cts)
-                background_count += min(float(cts), 2)
-
-                # crude but works I guess...
-                if float(e) > (float(edge) - 1250.0):
-                    break
+    # Get total counts and background counts up to a cutoff energy
+    i_cutoff = np.argmax(channel_energy > beam_energy - 1250.0)
+    total_count = np.sum(counts[0:i_cutoff])
+    # Maximum of 2 counts per channel contribute to background
+    background_count = np.sum(np.minimum(2, counts[0:i_cutoff]))
 
     if (total_count - background_count) > 100:
-        FilePrefix = os.path.splitext(os.path.basename(fn))[0]
-        pure_path = PurePath(fn).parts
-        VisitDir = pure_path[:6]
-        RestOfFilename = os.path.join(*pure_path[6:])
-        RestOfDirs = os.path.dirname(RestOfFilename)
-        OutputDir = os.path.join(*VisitDir, "processed/pymca", RestOfDirs)
-        elf = os.path.join(OutputDir, FilePrefix) + ".results.dat"
-
-        # contains lines like
+        # Results file contains lines like
         # Cu-K 7929.020000 90.714300
-        with open(elf) as f:
+        with open(results_file) as f:
             rv.append("Element\tCounts\t%age\tExpected Emission Energies")
-            for i, l in enumerate(f):
-                el, pk, conf = l.strip().split()
+            for _i, line in enumerate(f):
+                el, pk, conf = line.strip().split()
                 symbol, edge = el.split("-")
                 Z = xrl.SymbolToAtomicNumber(symbol)
                 edgesEnergies = "<b>{:g}</b>,{:g}".format(
@@ -60,18 +45,18 @@ def parse_raw_fluoro(fn, edge, trans, acqTime):
                     xrl.EdgeEnergy(Z, EDGE_MAPPER[edge]) * 1000.0,
                 )
                 if float(pk) >= 100000:
-                    counts = int(float(pk))
+                    pk_counts = int(float(pk))
                 else:
-                    counts = round(float(pk), 1)
+                    pk_counts = round(float(pk), 1)
                 rv.append(
                     "{}\t{:g}\t{:g}\t{}".format(
                         el,
-                        counts,
+                        pk_counts,
                         round(100 * float(pk) / total_count, 1),
                         edgesEnergies,
                     )
                 )
-                if i == 5:
+                if _i == 5:
                     break
     else:
         rv.append("No fluorescence peaks detected, try a higher transmission")
@@ -172,18 +157,70 @@ def find_cut_off_energy(inputFile, cutoffenergy):
                 pass
 
 
+def plot_fluorescence_spectrum(
+    outFile,
+    inputFile,
+    channel_energy,
+    channel_counts,
+    beam_energy,
+):
+    cutoff_energy = beam_energy - 1000
+    i_cutoff = np.argmax(channel_energy > cutoff_energy)
+
+    # Create plot of spectrum split by the cutoff
+    plt.figure(figsize=(8, 6))
+    plt.title(f"Fluorescence Spectrum {inputFile}", fontsize=12)
+    plt.xlabel("Energy (eV)", fontsize=12)
+    plt.ylabel("Number of Counts", fontsize=12)
+    plt.xlim(0, beam_energy)
+    plt.minorticks_on()
+    plt.grid(True, which="both", linestyle="--", linewidth=0.5)
+    plt.plot(
+        channel_energy[:i_cutoff],
+        channel_counts[:i_cutoff],
+        label="Data 1",
+        linestyle="-",
+        linewidth=1,
+        color="darkorange",
+    )
+    plt.plot(
+        channel_energy[i_cutoff:],
+        channel_counts[i_cutoff:],
+        label="Data 2",
+        linestyle="-",
+        linewidth=0.5,
+        color="deepskyblue",
+    )
+    plt.axvline(x=cutoff_energy, color="black", linestyle="--", linewidth=1)
+    plt.savefig(outFile, format="png")
+
+
 def run_auto_pymca(
-    SpectrumFile,
-    energy,
+    inputFile,
+    omega,
     transmission,
+    samplexyz,
     acqTime,
+    beam_energy,
     CFGFile=None,
     peaksFile=None,
-    selection={},
+    h5path=None,
 ):
-    FilePrefix = os.path.splitext(os.path.basename(SpectrumFile))[0]
-    file_name = os.path.basename(SpectrumFile)
-    pure_path = PurePath(SpectrumFile).parts
+    if not inputFile.endswith((".dat", ".mca", ".h5")):
+        raise ValueError("inputFile must end with .dat, .mca or .h5")
+    # For historical purposes, .dat given as input by GDA but .mca file is used
+    if inputFile.endswith(".dat"):
+        inputFile = os.path.splitext(inputFile)[0] + ".mca"
+
+    selection = {}
+    if h5py.is_hdf5(inputFile):
+        root_group = "entry"
+        y_data_path = "/data/data"
+        selection = {"entry": root_group, "y": y_data_path}
+
+    FilePrefix = os.path.splitext(os.path.basename(inputFile))[0]
+    file_name = os.path.basename(inputFile)
+    pure_path = PurePath(inputFile).parts
     VisitDir = pure_path[:6]
     RestOfFilename = os.path.join(*pure_path[6:])
     RestOfDirs = os.path.dirname(RestOfFilename)
@@ -193,7 +230,7 @@ def run_auto_pymca(
 
     if CFGFile is None:
         CFGFile = os.path.join("/dls_sw", BEAMLINE, "software/pymca/pymca_new.cfg")
-        peaks = parse_elements(energy)
+        peaks = parse_elements(beam_energy)
     elif peaksFile is not None:
         with open(peaksFile) as f:
             peaks = f.read()
@@ -201,7 +238,7 @@ def run_auto_pymca(
     if not os.path.isfile(CFGFile):
         raise FileNotFoundError(f"Config file '{CFGFile}' does not exist")
 
-    energy_keV = float(energy) / 1000.0
+    energy_keV = float(beam_energy) / 1000.0
 
     OutputDir = os.path.join(*VisitDir, "processed/pymca", RestOfDirs)
     DataDir = os.path.join(OutputDir, "data")
@@ -212,7 +249,7 @@ def run_auto_pymca(
     Path(ResultsDir).mkdir(parents=True, exist_ok=True)
 
     os.chdir(OutputDir)
-    shutil.copy2(SpectrumFile, DataDir)
+    shutil.copy2(inputFile, DataDir)
 
     with open(CFGFile, "r") as f1, open(
         os.path.join(OutputDir, FilePrefix + ".cfg"), "w"
@@ -238,9 +275,8 @@ def run_auto_pymca(
     b = McaAdvancedFitBatch.McaAdvancedFitBatch(
         cfg_path, file_path, "out", 0, 250.0, selection=selection
     )
+    # ProcessList method fits data and writes results to .h5 file
     b.processList()
-
-    # the results are written to an HDF5 file
     DatOut = os.path.join(ResultsDir, FilePrefix + ".h5")
 
     if not os.path.isfile(DatOut):
@@ -254,75 +290,46 @@ def run_auto_pymca(
         for p in peaks:
             print("{} {} {}".format(p[0], p[1], p[2]), file=f)
 
-    rawDatFile = os.path.splitext(SpectrumFile)[0] + ".dat"
+    if inputFile.endswith(".h5"):
+        # Read the calibration from config file
+        calib = {}
+        with open(cfg_path) as f:
+            for line in f:
+                # Uses regex to extract the zero and gain calibration values
+                if match := re.match(r"^(zero|gain) = (\d+(?:\.\d+)?)$", line.strip()):
+                    param, value = match.groups()
+                    calib[param] = float(value)
+        # Read in spectrum data counts
+        with h5py.File(inputFile, "r") as hf:
+            # Squeeze to collapse 1-length dimensions
+            channel_counts = np.squeeze(hf["entry/data/data"])
+        # Calculate channel energies (in eV) from calibration
+        channel_energy = np.array(
+            [
+                calib["zero"] + calib["gain"] * _i * 1000
+                for _i in range(len(channel_counts))
+            ]
+        )
 
-    html = parse_raw_fluoro(rawDatFile, energy, transmission, acqTime)
+    else:
+        rawDatFile = os.path.splitext(inputFile)[0] + ".dat"
+        spectrum_data = np.loadtext(rawDatFile, delimiter=" ", skiprows=3)
+        channel_energy = spectrum_data[:, 0]
+        channel_counts = spectrum_data[:, 1]
 
-    return html
-
-
-def plot_fluorescence_spectrum(
-    inputFile,
-    omega,
-    transmission,
-    samplexyz,
-    acqTime,
-    energy,
-    CFGFile=None,
-    peaksFile=None,
-    h5path=None,
-):
-    if not inputFile.endswith((".dat", ".mca", ".h5")):
-        raise ValueError("inputFile must end with .dat, .mca or .h5")
-    # For historical purposes, .dat given as input by GDA but .mca file is used
-    if inputFile.endswith(".dat"):
-        inputFile = os.path.splitext(inputFile)[0] + ".mca"
-
-    selection = {}
-    if h5py.is_hdf5(inputFile):
-        root_group = "entry"
-        y_data_path = "/data/data"
-        selection = {"entry": root_group, "y": y_data_path}
-
-    outputPymca = run_auto_pymca(
-        inputFile,
-        energy,
-        transmission,
-        acqTime,
-        CFGFile=CFGFile,
-        peaksFile=peaksFile,
-        selection=selection,
+    pymca_output = parse_raw_fluoro(
+        channel_energy, channel_counts, beam_energy, ResultsFile
     )
-    outputPymca = "\n".join(outputPymca)
+    pymca_output = "\n".join(pymca_output)
 
     outFile = os.path.splitext(inputFile)[0] + ".png"
-    cutoffenergy = float(energy) - 1000.0
 
-    cutoffline = find_cut_off_energy(inputFile, cutoffenergy)
-
-    gnuplot_input = f"""set term png size 800,600
-set title "Fluorescence Spectrum {inputFile}" noenhanced
-set xlabel "Energy (eV)"
-set ylabel "Number of Counts"
-set xrange [0:{energy}]
-set mxtics 4
-set mytics 4
-set grid xtics ytics mxtics mytics
-set style arrow 1 nohead lt 4 lw 5
-set style arrow 2 nohead lt 39 lw 1
-set arrow from {cutoffenergy},graph(0) to {cutoffenergy},graph(1) as 2
-set out '{outFile}'
-set nokey
-set style line 1 lt 1
-set style line 2 lt 39
-plot '{inputFile}' every ::0::{cutoffline} using 1:2 with lines ls 1, '{inputFile}' every ::{cutoffline} using 1:2 with lines ls 2
-"""
-
-    subprocess.run(
-        ["/usr/bin/gnuplot"],
-        input=gnuplot_input,
-        universal_newlines=True,
-        encoding="utf8",
+    plot_fluorescence_spectrum(
+        outFile,
+        inputFile,
+        channel_energy,
+        channel_counts,
+        beam_energy,
     )
 
     pure_path = PurePath(inputFile).parts
@@ -334,7 +341,7 @@ plot '{inputFile}' every ::0::{cutoffline} using 1:2 with lines ls 1, '{inputFil
     )
     ScanNumber = os.path.splitext(ScanName)[0]
 
-    # RelPNGfile is allowed to be empty apparently...
+    # Find crystal snapshot if it exists
     try:
         RelPNGfile = sorted(
             glob(os.path.join(OutputDir, ScanNumber) + "*[0-9].png"),
@@ -360,11 +367,11 @@ table.table2 td {{ border-style: none; font-size: 80%; padding: 2px;}}
 <table border width=640><tr><td align=center>{timestamp}<br/><a href="{RelNameHtml}">{ScanName}</a></td></tr>
 <tr><td><table class="table2" width=100%>
 <tr><th colspan=4 align=center>Fluorescence Spectrum</td></tr>
-<tr><td>Beamline Energy:</td><td>{energy}eV</td><td>Omega:</td><td>{omega}&deg;</td></tr>
+<tr><td>Beamline Energy:</td><td>{beam_energy}eV</td><td>Omega:</td><td>{omega}&deg;</td></tr>
 <tr><td>Acq Time:</td><td>{acqTime}s</td><td>Trans:</td><td>{transmission}%</td></tr>
 <tr><td>Sample Position:</td><td colspan=3>{samplexyz}</td></tr>
 </table></td></tr>
-<tr><td>Automated PyMca results<br /><pre>{outputPymca}</pre><a href="http://www.diamond.ac.uk/dms/MX/Common/Interpreting-AutoPyMCA/Interpreting%20AutoPyMCA.pdf">Guide to AutoPyMCA</a> (pdf)</td></tr>
+<tr><td>Automated PyMca results<br /><pre>{pymca_output}</pre><a href="http://www.diamond.ac.uk/dms/MX/Common/Interpreting-AutoPyMCA/Interpreting%20AutoPyMCA.pdf">Guide to AutoPyMCA</a> (pdf)</td></tr>
 <tr><td><img src="{outFile}" /></td></tr>
 <tr><td><img src="jpegs/{RelPNGfile}" alt="Snapshot not taken" width=640 /></td></tr></table>
 """
