@@ -72,23 +72,29 @@ def parse_raw_fluoro(counts, channel_energy, beam_energy, results_file):
 # Parses a file and sorts spectral peaks with largest area first
 # and prints them to stdout
 def parse_spec_fit(name):
-    f = h5py.File(name, "r")
-    parameters = f[list(f.keys())[0] + "/xrf_fit/results/parameters"]
-    all_fit = filter(
-        lambda name: not name.startswith("Scatter") and not name.endswith("_errors"),
-        parameters,
-    )
+    try:
+        f = h5py.File(name, "r")
+        parameters = f[list(f.keys())[0] + "/xrf_fit/results/parameters"]
+        all_fit = filter(
+            lambda name: not name.startswith("Scatter")
+            and not name.endswith("_errors"),
+            parameters,
+        )
 
-    def mapper(name):
-        return [
-            name.replace("_", "-"),
-            parameters[name][0, 0],
-            parameters[name + "_errors"][0, 0],
-        ]
+        def mapper(name):
+            return [
+                name.replace("_", "-"),
+                parameters[name][0, 0],
+                parameters[name + "_errors"][0, 0],
+            ]
 
-    mapped = map(mapper, all_fit)
+        mapped = map(mapper, all_fit)
+        peaks = sorted(mapped, key=lambda p: p[1], reverse=True)
 
-    peaks = sorted(mapped, key=lambda p: p[1], reverse=True)
+    except KeyError:
+        raise KeyError(
+            f"PyMCA fit parameters not found at '/xrf_fit/results/parameters' in '{name}'"
+        )
 
     return peaks
 
