@@ -175,7 +175,7 @@ def plot_fluorescence_spectrum(
     cutoff_energy = beam_energy - 1000
     i_cutoff = np.argmax(channel_energy > cutoff_energy)
 
-    # Create plot of spectrum split by the cutoff
+    # Create plot of spectrum, split by the cutoff
     plt.figure(figsize=(8, 6))
     plt.title(f"Fluorescence Spectrum {inputFile}", fontsize=12)
     plt.xlabel("Energy (eV)", fontsize=12)
@@ -222,8 +222,13 @@ def run_auto_pymca(
 
     selection = {}
     if h5py.is_hdf5(inputFile):
-        root_group = "entry"
-        y_data_path = "/data/data"
+        if h5path:
+            h5path = Path(h5path)
+            root_group = h5path.parts[0]
+            y_data_path = Path(*h5path.parts[1:])
+        else:
+            root_group = "entry"
+            y_data_path = "/data/data"
         selection = {"entry": root_group, "y": y_data_path}
 
     FilePrefix = os.path.splitext(os.path.basename(inputFile))[0]
