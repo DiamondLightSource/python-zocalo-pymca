@@ -224,8 +224,12 @@ def run_auto_pymca(
     if h5py.is_hdf5(inputFile):
         if h5path:
             h5path = Path(h5path)
-            root_group = h5path.parts[0]
-            y_data_path = Path(*h5path.parts[1:])
+            if h5path.parts[0] == os.sep:
+                root_group = h5path.parts[1]
+                y_data_path = "/" + "/".join(h5path.parts[2:])
+            else:
+                root_group = h5path.parts[0]
+                y_data_path = "/" + "/".join(h5path.parts[1:])
         else:
             root_group = "entry"
             y_data_path = "/data/data"
@@ -286,7 +290,7 @@ def run_auto_pymca(
         raise FileNotFoundError(f"File {file_path} does not exist")
 
     b = McaAdvancedFitBatch.McaAdvancedFitBatch(
-        cfg_path, file_path, "out", 0, 250.0, selection=selection
+        cfg_path, [file_path], "out", 0, 250.0, selection=selection
     )
     # ProcessList method fits data and writes results to .h5 file
     b.processList()
