@@ -22,8 +22,10 @@ LINE_MAPPER = {
 }
 
 
-# edge is here the beam energy...
 def parse_raw_fluoro(counts, channel_energy, beam_energy, results_file):
+    """Calculate total and background counts from raw spectrum, then
+    return results for top 5 fitted peaks if there is sufficient
+    signal above the background"""
     rv = []
     # Get total counts and background counts up to a cutoff energy
     i_cutoff = np.argmax(channel_energy > beam_energy - 1250.0)
