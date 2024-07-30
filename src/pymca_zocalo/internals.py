@@ -22,16 +22,17 @@ LINE_MAPPER = {
 }
 
 
-def parse_raw_fluoro(counts, channel_energy, beam_energy, results_file):
+def parse_raw_fluoro(channel_energy, channel_counts, beam_energy, results_file):
     """Calculate total and background counts from raw spectrum, then
     return results for top 5 fitted peaks if there is sufficient
     signal above the background"""
     rv = []
     # Get total counts and background counts up to a cutoff energy
-    i_cutoff = np.argmax(channel_energy > beam_energy - 1250.0)
-    total_count = np.sum(counts[0:i_cutoff])
+    cutoff_energy = beam_energy - 1250.0
+    i_cutoff = np.argmax(channel_energy > cutoff_energy)
+    total_count = np.sum(channel_counts[0:i_cutoff])
     # Maximum of 2 counts per channel contribute to background
-    background_count = np.sum(np.minimum(2, counts[0:i_cutoff]))
+    background_count = np.sum(np.minimum(2, channel_counts[0:i_cutoff]))
 
     if (total_count - background_count) > 100:
         # Results file contains lines like
@@ -323,14 +324,16 @@ def run_auto_pymca(
         # Calculate channel energies (in eV) from calibration
         channel_energy = np.array(
             [
-                calib["zero"] + calib["gain"] * _i * 1000
+                (calib["zero"] + calib["gain"] * _i) * 1000
                 for _i in range(len(channel_counts))
             ]
         )
 
     else:
         rawDatFile = os.path.splitext(inputFile)[0] + ".dat"
-        spectrum_data = np.loadtext(rawDatFile, delimiter=" ", skiprows=3)
+        spectrum_data = np.loadtxt(
+            rawDatFile, delimiter="\t", skiprows=3, usecols=(0, 1)
+        )
         channel_energy = spectrum_data[:, 0]
         channel_counts = spectrum_data[:, 1]
 

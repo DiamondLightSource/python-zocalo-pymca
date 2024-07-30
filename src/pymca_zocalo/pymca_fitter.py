@@ -28,6 +28,31 @@ class DLSPyMcaFitter(CommonService):
         """Call dispatcher"""
         params = rw.recipe_step.get("parameters", {}).copy()
 
+        # Deal with un-populated placeholders with None
+        req_placeholders = [
+            "{inputFile}",
+            "{energy}",
+        ]
+
+        opt_placeholders = [
+            "{omega}",
+            "{transmission}",
+            "{samplexyz}",
+            "{acqTime}",
+            "{CFGFile}",
+            "{h5path}",
+        ]
+
+        for key, value in params.items():
+            if value in req_placeholders:
+                self.log.error(
+                    f"Error running PyMca - Missing rquired parameter: '{key}'"
+                )
+                rw.transport.ack(header)
+                return
+            if value in opt_placeholders:
+                params[key] = None
+
         self.log.debug(f"pymca_fitter running with params {params}")
         try:
             run_auto_pymca(
