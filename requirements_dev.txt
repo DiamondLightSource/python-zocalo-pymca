@@ -1,5 +1,7 @@
 bump2version
+h5py
 matplotlib-base
+numpy
 pip
 pymca
 pytest
