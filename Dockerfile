@@ -1,6 +1,6 @@
 FROM debian:12-slim
 
-RUN apt-get update && apt-get install -y curl bzip2 gnuplot
+RUN apt-get update && apt-get install -y curl bzip2
 # install miniconda
 RUN curl -LO https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
     bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda && \
