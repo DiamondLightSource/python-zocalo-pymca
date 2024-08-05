@@ -374,7 +374,7 @@ def run_auto_pymca(
         # Read in spectrum data counts
         with h5py.File(inputFile, "r") as hf:
             # Squeeze to collapse 1-length dimensions
-            channel_counts = np.squeeze(hf["entry/data/data"])
+            channel_counts = np.squeeze(hf[str(h5path)])
         # Calculate channel energies (in eV) from calibration
         channel_energy = np.array(
             [
