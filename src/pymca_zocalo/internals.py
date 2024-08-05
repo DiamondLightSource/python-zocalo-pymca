@@ -198,6 +198,32 @@ def find_cut_off_energy(inputFile, cutoffenergy):
                 pass
 
 
+def spectrum_to_mca(channel_counts, calib, output_file, input_file, h5path):
+    # Converts a spectrum as a 1D numpy array of counts to an MCA file
+    timestamp = datetime.now().strftime("%a %b %d %H:%M:%S %Y")
+    header = [
+        f"#F {output_file}",
+        f"#S {input_file} {h5path}",
+        f"#D {timestamp}",
+        "",
+        "#@MCA %16C",
+        f"#@CHANN {len(channel_counts)} 0 {len(channel_counts)-1} 1",
+        f"#@CALIB {calib['zero']} {calib['gain']} 0.0",
+    ]
+    header = "\n".join(header)
+
+    data_out = ["@A"]
+    for _i, counts in enumerate(channel_counts, start=1):
+        data_out.append(str(counts))
+        if not _i % 16:
+            data_out.append("\\\n")
+
+    data_out = " ".join(data_out)
+
+    with open(output_file, "w") as f:
+        f.write(header + "\n" + data_out)
+
+
 def plot_fluorescence_spectrum(
     outFile,
     inputFile,
@@ -333,7 +359,8 @@ def run_auto_pymca(
         for p in peaks:
             print("{} {} {}".format(p[0], p[1], p[2]), file=f)
 
-    if inputFile.endswith(".h5"):
+    # Read and plot the spectrum data
+    if h5py.is_hdf5(inputFile):
         # Read the calibration from config file
         calib = {}
         with open(cfg_path) as f:
@@ -353,6 +380,9 @@ def run_auto_pymca(
                 for _i in range(len(channel_counts))
             ]
         )
+        mca_out = os.path.splitext(inputFile)[0] + ".mca"
+        # Create a .mca file (not used by this code but a more user friendly file format for PyMCA GUI)
+        spectrum_to_mca(channel_counts, calib, mca_out, inputFile, h5path)
 
     else:
         rawDatFile = os.path.splitext(inputFile)[0] + ".dat"
