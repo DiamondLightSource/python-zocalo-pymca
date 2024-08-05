@@ -203,9 +203,10 @@ def spectrum_to_mca(channel_counts, calib, output_file, input_file, selection):
     timestamp = datetime.now().strftime("%a %b %d %H:%M:%S %Y")
     header = [
         f"#F {output_file}",
-        f"#S {input_file} {selection['entry']+selection['y']}",
         f"#D {timestamp}",
         "",
+        f"#S 1 {input_file} {selection['entry']}",
+        f"#D {timestamp}",
         "#@MCA %16C",
         f"#@CHANN {len(channel_counts)} 0 {len(channel_counts)-1} 1",
         f"#@CALIB {calib['zero']} {calib['gain']} 0.0",
@@ -215,7 +216,7 @@ def spectrum_to_mca(channel_counts, calib, output_file, input_file, selection):
     data_out = ["@A"]
     for _i, counts in enumerate(channel_counts, start=1):
         data_out.append(str(counts))
-        if not _i % 16:
+        if not _i % 16 and _i != len(channel_counts):
             data_out.append("\\\n")
 
     data_out = " ".join(data_out)
