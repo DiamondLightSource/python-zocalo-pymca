@@ -22,13 +22,15 @@ LINE_MAPPER = {
 }
 
 
-def parse_raw_fluoro(channel_energy, channel_counts, beam_energy, results_file):
+def parse_raw_fluoro(
+    channel_energy, channel_counts, beam_energy, results_file, offset=1250
+):
     """Calculate total and background counts from raw spectrum, then
     return results for top 5 fitted peaks if there is sufficient
     signal above the background"""
     rv = []
     # Get total counts and background counts up to a cutoff energy
-    cutoff_energy = beam_energy - 1250.0
+    cutoff_energy = beam_energy - offset
     i_cutoff = np.argmax(channel_energy > cutoff_energy)
     total_count = np.sum(channel_counts[0:i_cutoff])
     # Maximum of 2 counts per channel contribute to background
@@ -215,7 +217,9 @@ def spectrum_to_mca(channel_counts, calib, output_file, input_file, selection):
 
     data_out = ["@A"]
     for _i, counts in enumerate(channel_counts, start=1):
-        data_out.append(str(counts))
+        # Create string with removed trailing 0s
+        counts_str = str(counts).rstrip("0").rstrip(".")
+        data_out.append(counts_str)
         if not _i % 16 and _i != len(channel_counts):
             data_out.append("\\\n")
 
@@ -226,13 +230,9 @@ def spectrum_to_mca(channel_counts, calib, output_file, input_file, selection):
 
 
 def plot_fluorescence_spectrum(
-    outFile,
-    inputFile,
-    channel_energy,
-    channel_counts,
-    beam_energy,
+    outFile, inputFile, channel_energy, channel_counts, beam_energy, offset=1200
 ):
-    cutoff_energy = beam_energy - 1000
+    cutoff_energy = beam_energy - offset
     i_cutoff = np.argmax(channel_energy > cutoff_energy)
 
     # Create plot of spectrum, split by the cutoff
@@ -304,6 +304,7 @@ def run_auto_pymca(
     BEAMLINE = pure_path[2]
 
     peaks = None
+    cutoff_offset = 1000
 
     if CFGFile is None:
         CFGFile = os.path.join("/dls_sw", BEAMLINE, "software/pymca/pymca_new.cfg")
@@ -394,7 +395,7 @@ def run_auto_pymca(
         channel_counts = spectrum_data[:, 1]
 
     pymca_output = parse_raw_fluoro(
-        channel_energy, channel_counts, beam_energy, ResultsFile
+        channel_energy, channel_counts, beam_energy, ResultsFile, offset=cutoff_offset
     )
     pymca_output = "\n".join(pymca_output)
 
@@ -406,6 +407,7 @@ def run_auto_pymca(
         channel_energy,
         channel_counts,
         beam_energy,
+        offset=cutoff_offset,
     )
 
     pure_path = PurePath(inputFile).parts
