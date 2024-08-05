@@ -102,6 +102,38 @@ def parse_spec_fit(name):
     return peaks
 
 
+def configure_cfg(cfg_file, peaks, energy_kev):
+    with open(cfg_file, "r") as file:
+        lines = file.readlines()
+        peaks_section = False
+        peaks_section_end = False
+        peaks_found = False
+        peak_line_num = len(lines)
+
+        for line_num, line in enumerate(lines):
+            # Replace energy in file with actual photon energy
+            if match := re.match(r"energy = (\d+(\.\d+)?),", line):
+                lines[line_num] = line.replace(match.group(1), str(energy_kev))
+            # Look for peaks
+            if line.strip() == "[peaks]":
+                peaks_section = True
+            elif peaks_section and not peaks_section_end:
+                if "[" in line:
+                    peaks_section_end = True
+                    peak_line_num = line_num
+                if "=" in line:
+                    peaks_found = True
+        # Add peaks to file if not found
+        if not peaks_found:
+            if not peaks_section:
+                lines.append("\n[peaks]\n")
+                peak_line_num += 1
+            lines.insert(peak_line_num, peaks)
+
+    with open(cfg_file, "w") as file:
+        file.writelines(lines)
+
+
 def parse_elements(energy):
     """
     Filters a dictionary of element/edge combinations likely to be encountered in an
@@ -248,10 +280,6 @@ def run_auto_pymca(
 
     if CFGFile is None:
         CFGFile = os.path.join("/dls_sw", BEAMLINE, "software/pymca/pymca_new.cfg")
-        peaks = parse_elements(beam_energy)
-    elif peaksFile is not None:
-        with open(peaksFile) as f:
-            peaks = f.read()
 
     if not os.path.isfile(CFGFile):
         raise FileNotFoundError(f"Config file '{CFGFile}' does not exist")
@@ -261,6 +289,7 @@ def run_auto_pymca(
     OutputDir = os.path.join(*VisitDir, "processed/pymca", RestOfDirs)
     DataDir = os.path.join(OutputDir, "data")
     ResultsDir = os.path.join(OutputDir, "out")
+    cfg_path = os.path.join(OutputDir, FilePrefix + ".cfg")
 
     Path(OutputDir).mkdir(parents=True, exist_ok=True)
     Path(DataDir).mkdir(parents=True, exist_ok=True)
@@ -268,21 +297,17 @@ def run_auto_pymca(
 
     os.chdir(OutputDir)
     shutil.copy2(inputFile, DataDir)
+    shutil.copyfile(CFGFile, cfg_path)
 
-    with open(CFGFile, "r") as f1, open(
-        os.path.join(OutputDir, FilePrefix + ".cfg"), "w"
-    ) as f2:
-        for line in f1:
-            # Replace the default energy with the beam energy
-            if match := re.match(r"energy = (\d+(\.\d+)?),", line):
-                line = line.replace(match.group(1), str(energy_keV))
-            f2.write(line)
+    if peaksFile is not None:
+        with open(peaksFile) as f:
+            peaks = f.read()
+    else:
+        peaks = parse_elements(beam_energy)
 
-        if peaks is not None:
-            f2.write(peaks)
+    configure_cfg(cfg_path, peaks, energy_keV)
 
     file_path = os.path.join(DataDir, file_name)
-    cfg_path = os.path.join(OutputDir, FilePrefix + ".cfg")
 
     if not os.path.isfile(cfg_path):
         raise FileNotFoundError(f"File {cfg_path} does not exist")
