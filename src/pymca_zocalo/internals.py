@@ -198,12 +198,12 @@ def find_cut_off_energy(inputFile, cutoffenergy):
                 pass
 
 
-def spectrum_to_mca(channel_counts, calib, output_file, input_file, h5path):
+def spectrum_to_mca(channel_counts, calib, output_file, input_file, selection):
     # Converts a spectrum as a 1D numpy array of counts to an MCA file
     timestamp = datetime.now().strftime("%a %b %d %H:%M:%S %Y")
     header = [
         f"#F {output_file}",
-        f"#S {input_file} {h5path}",
+        f"#S {input_file} {selection['entry']+selection['y']}",
         f"#D {timestamp}",
         "",
         "#@MCA %16C",
@@ -382,7 +382,7 @@ def run_auto_pymca(
         )
         mca_out = os.path.splitext(inputFile)[0] + ".mca"
         # Create a .mca file (not used by this code but a more user friendly file format for PyMCA GUI)
-        spectrum_to_mca(channel_counts, calib, mca_out, inputFile, h5path)
+        spectrum_to_mca(channel_counts, calib, mca_out, inputFile, selection)
 
     else:
         rawDatFile = os.path.splitext(inputFile)[0] + ".dat"
