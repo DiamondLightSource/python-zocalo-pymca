@@ -39,7 +39,7 @@ class DLSPyMcaFitter(CommonService):
             "{transmission}",
             "{samplexyz}",
             "{acqTime}",
-            "{CFGFile}",
+            "{cfgFile}",
             "{h5path}",
         ]
 
@@ -62,7 +62,7 @@ class DLSPyMcaFitter(CommonService):
                 params["samplexyz"],
                 params["acqTime"],
                 float(params["energy"]),
-                CFGFile=params.get("CFGFile"),
+                cfgFile=params.get("cfgFile"),
                 peaksFile=params.get("peaksFile"),
                 h5path=params.get("h5path"),
             )
