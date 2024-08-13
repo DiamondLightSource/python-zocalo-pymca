@@ -8,6 +8,6 @@ pytest
 pytest-runner
 setuptools
 wheel
-workflows
+workflows>=1.7
 xraylib
 zocalo
