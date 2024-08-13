@@ -43,4 +43,4 @@ jobs:
 
       - name: Test
         run: |
-          docker exec docker.io/library/test bash -c "pytest"
+          docker run docker.io/library/test pytest
