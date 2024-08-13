@@ -1,7 +1,13 @@
+bump2version
 h5py
-numpy
 matplotlib-base
+numpy
+pip
 pymca
+pytest
+pytest-runner
+setuptools
+wheel
 workflows>=1.7
 xraylib
 zocalo
