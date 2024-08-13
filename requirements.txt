@@ -1,4 +1,6 @@
+h5py
 numpy
+matplotlib-base
 pymca
 workflows>=1.7
 xraylib
