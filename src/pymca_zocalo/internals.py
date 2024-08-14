@@ -282,17 +282,15 @@ def run_auto_pymca(
 
     selection = {}
     if h5py.is_hdf5(inputFile):
-        if h5path:
-            h5path = Path(h5path)
-            if h5path.parts[0] == os.sep:
-                root_group = h5path.parts[1]
-                y_data_path = "/" + "/".join(h5path.parts[2:])
-            else:
-                root_group = h5path.parts[0]
-                y_data_path = "/" + "/".join(h5path.parts[1:])
+        if not h5path:
+            h5path = "/entry/data/data"
+        h5path_parts = Path(h5path).parts
+        if h5path_parts[0] == os.sep:
+            root_group = h5path_parts[1]
+            y_data_path = "/" + "/".join(h5path_parts[2:])
         else:
-            root_group = "entry"
-            y_data_path = "/data/data"
+            root_group = h5path_parts[0]
+            y_data_path = "/" + "/".join(h5path_parts[1:])
         selection = {"entry": root_group, "y": y_data_path}
 
     FilePrefix = os.path.splitext(os.path.basename(inputFile))[0]
@@ -374,7 +372,7 @@ def run_auto_pymca(
         # Read in spectrum data counts
         with h5py.File(inputFile, "r") as hf:
             # Squeeze to collapse 1-length dimensions
-            channel_counts = np.squeeze(hf[str(h5path)])
+            channel_counts = np.squeeze(hf[h5path])
         # Calculate channel energies (in eV) from calibration
         channel_energy = np.array(
             [
