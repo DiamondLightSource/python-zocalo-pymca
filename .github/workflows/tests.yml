@@ -1,11 +1,7 @@
 name: Test CI
 
 on:
-  push:
   pull_request:
-  schedule:
-    # Run every Monday at 8am to check latest versions of dependencies
-    - cron: "0 8 * * WED"
 
 jobs:
   tests:
