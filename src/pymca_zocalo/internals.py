@@ -11,67 +11,69 @@ import numpy as np
 import xraylib as xrl
 from PyMca5.PyMca import McaAdvancedFitBatch
 
-EDGE_MAPPER = {
-    "K": xrl.K_SHELL,
-    "L": xrl.L3_SHELL,
-}
 
-LINE_MAPPER = {
-    "K": xrl.KL3_LINE,
-    "L": xrl.L3M5_LINE,
-}
-
-
-def parse_raw_fluoro(
-    channel_energy, channel_counts, beam_energy, results_file, offset=1250
-):
+def parse_raw_fluoro(channel_energy, channel_counts, beam_energy, peaks, offset):
     """Calculate total and background counts from raw spectrum, then
-    return results for top 5 fitted peaks if there is sufficient
-    signal above the background"""
-    rv = []
+    return results as formatted text for top 5 fitted peaks if there
+    is sufficient signal above the background"""
+    output_txt = []
+    edge_mapper = {
+        "K": xrl.K_SHELL,
+        "L": xrl.L3_SHELL,
+    }
+
+    line_mapper = {
+        "K": xrl.KL3_LINE,
+        "L": xrl.L3M5_LINE,
+    }
     # Get total counts and background counts up to a cutoff energy
     cutoff_energy = beam_energy - offset
-    i_cutoff = np.argmax(channel_energy > cutoff_energy)
-    total_count = np.sum(channel_counts[0:i_cutoff])
+    cutoff_idx = np.argmax(channel_energy > cutoff_energy)
+    if not cutoff_idx:
+        raise ValueError(
+            "No cutoff index found - all recorded channels are too close in energy to the beam"
+        )
+    total_count = np.sum(channel_counts[0:cutoff_idx])
     # Maximum of 2 counts per channel contribute to background
-    background_count = np.sum(np.minimum(2, channel_counts[0:i_cutoff]))
+    background_count = np.sum(np.minimum(2, channel_counts[0:cutoff_idx]))
 
     if (total_count - background_count) > 100:
-        # Results file contains lines like
-        # Cu-K 7929.020000 90.714300
-        with open(results_file) as f:
-            rv.append("Element\tCounts\t%age\tExpected Emission Energies")
-            for _i, line in enumerate(f):
-                el, pk, conf = line.strip().split()
-                symbol, edge = el.split("-")
-                Z = xrl.SymbolToAtomicNumber(symbol)
+        if len(peaks):
+            output_txt.append("Element\tCounts\t%age\tExpected Emission Energies")
+            for peak_num, (emis_line, counts, _sigma) in enumerate(peaks, start=1):
+                symbol, edge = emis_line.split("-")
+                z = xrl.SymbolToAtomicNumber(symbol)
                 edgesEnergies = "<b>{:g}</b>,{:g}".format(
-                    xrl.LineEnergy(Z, LINE_MAPPER[edge]) * 1000.0,
-                    xrl.EdgeEnergy(Z, EDGE_MAPPER[edge]) * 1000.0,
+                    xrl.LineEnergy(z, line_mapper[edge]) * 1000.0,
+                    xrl.EdgeEnergy(z, edge_mapper[edge]) * 1000.0,
                 )
-                if float(pk) >= 100000:
-                    pk_counts = int(float(pk))
+                if counts >= 100000:
+                    pk_counts = int(counts)
                 else:
-                    pk_counts = round(float(pk), 1)
-                rv.append(
+                    pk_counts = round(counts, 1)
+                output_txt.append(
                     "{}\t{:g}\t{:g}\t{}".format(
-                        el,
+                        emis_line,
                         pk_counts,
-                        round(100 * float(pk) / total_count, 1),
+                        round(100 * counts / total_count, 1),
                         edgesEnergies,
                     )
                 )
-                if _i == 5:
+                if peak_num == 5:
                     break
+        else:
+            output_txt.append(
+                "Counts found but no peaks of select elements fitted, check the spectrum manually"
+            )
     else:
-        rv.append("No fluorescence peaks detected, try a higher transmission")
+        output_txt.append("No fluorescence peaks detected, try a higher transmission")
 
-    rv.append(
+    output_txt.append(
         "\nCounts (total): {:g} (background): {:g}".format(
             total_count, background_count
         )
     )
-    return rv
+    return "\n".join(output_txt)
 
 
 # Parses a file and sorts spectral peaks with largest area first
@@ -175,10 +177,15 @@ def parse_elements(energy):
         "Pb": "L",
     }
 
+    edge_mapper = {
+        "K": xrl.K_SHELL,
+        "L": xrl.L3_SHELL,
+    }
+
     def _check_edge(element):
         symbol, edge = element
         Z = xrl.SymbolToAtomicNumber(symbol)
-        shell = EDGE_MAPPER[edge]
+        shell = edge_mapper[edge]
         return float(energy) > xrl.EdgeEnergy(Z, shell) * 1000.0
 
     return "\n".join(
@@ -283,7 +290,7 @@ def run_auto_pymca(
     selection = {}
     if h5py.is_hdf5(inputFile):
         if not h5path:
-            h5path = "/entry/data/data"
+            h5path = "entry/data/data"
         h5path_parts = Path(h5path).parts
         if h5path_parts[0] == os.sep:
             root_group = h5path_parts[1]
@@ -354,10 +361,10 @@ def run_auto_pymca(
     peaks = parse_spec_fit(DatOut)
 
     ResultsFile = os.path.join(OutputDir, FilePrefix) + ".results.dat"
-
+    results_txt = [f"{peak[0]} {peak[1]} {peak[2]}" for peak in peaks]
+    results_txt = "\n".join(results_txt)
     with open(ResultsFile, "w") as f:
-        for p in peaks:
-            print("{} {} {}".format(p[0], p[1], p[2]), file=f)
+        f.write(results_txt)
 
     # Read and plot the spectrum data
     if h5py.is_hdf5(inputFile):
@@ -393,9 +400,8 @@ def run_auto_pymca(
         channel_counts = spectrum_data[:, 1]
 
     pymca_output = parse_raw_fluoro(
-        channel_energy, channel_counts, beam_energy, ResultsFile, offset=cutoff_offset
+        channel_energy, channel_counts, beam_energy, peaks, cutoff_offset
     )
-    pymca_output = "\n".join(pymca_output)
 
     outFile = os.path.splitext(inputFile)[0] + ".png"
 

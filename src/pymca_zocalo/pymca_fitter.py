@@ -28,7 +28,7 @@ class DLSPyMcaFitter(CommonService):
         """Call dispatcher"""
         params = rw.recipe_step.get("parameters", {}).copy()
 
-        # Deal with un-populated placeholders with None
+        # Deal with un-populated placeholders
         req_placeholders = [
             "{inputFile}",
             "{energy}",
