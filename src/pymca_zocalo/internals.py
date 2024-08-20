@@ -2,12 +2,12 @@ import os
 import re
 import shutil
 from datetime import datetime
-from glob import glob
-from pathlib import Path, PurePath
+from pathlib import Path
 
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+import pkg_resources
 import xraylib as xrl
 from PyMca5.PyMca import McaAdvancedFitBatch
 
@@ -196,17 +196,6 @@ def parse_elements(energy):
     )
 
 
-def find_cut_off_energy(inputFile, cutoffenergy):
-    with open(inputFile, "r") as f:
-        for i, line in enumerate(f):
-            try:
-                energy = float(line.split()[0])
-                if energy > float(cutoffenergy):
-                    return i
-            except (ValueError, IndexError):
-                pass
-
-
 def spectrum_to_mca(channel_counts, calib, output_file, input_file, selection):
     # Converts a spectrum as a 1D numpy array of counts to an MCA file
     timestamp = datetime.now().strftime("%a %b %d %H:%M:%S %Y")
@@ -237,14 +226,14 @@ def spectrum_to_mca(channel_counts, calib, output_file, input_file, selection):
 
 
 def plot_fluorescence_spectrum(
-    outFile, inputFile, channel_energy, channel_counts, beam_energy, offset=1200
+    out_file, input_file, channel_energy, channel_counts, beam_energy, offset
 ):
     cutoff_energy = beam_energy - offset
     i_cutoff = np.argmax(channel_energy > cutoff_energy)
 
     # Create plot of spectrum, split by the cutoff
     plt.figure(figsize=(8, 6))
-    plt.title(f"Fluorescence Spectrum {inputFile}", fontsize=12)
+    plt.title(f"Fluorescence Spectrum {input_file}", fontsize=12)
     plt.xlabel("Energy (eV)", fontsize=12)
     plt.ylabel("Number of Counts", fontsize=12)
     plt.xlim(0, beam_energy)
@@ -267,132 +256,170 @@ def plot_fluorescence_spectrum(
         color="deepskyblue",
     )
     plt.axvline(x=cutoff_energy, color="black", linestyle="--", linewidth=1)
-    plt.savefig(outFile, format="png")
+    plt.savefig(out_file, format="png")
+
+
+def read_h5file(src_data_file, h5path):
+    if not h5path:
+        h5path = "entry/data/data"
+    h5path_parts = Path(h5path).parts
+    if h5path_parts[0] == os.sep:
+        root_group = h5path_parts[1]
+        y_data_path = "/" + "/".join(h5path_parts[2:])
+    else:
+        root_group = h5path_parts[0]
+        y_data_path = "/" + "/".join(h5path_parts[1:])
+    selection = {"entry": root_group, "y": y_data_path}
+
+    # Read in data from h5 file
+    calibration_path = Path(h5path).parent / "calibration"
+    with h5py.File(src_data_file, "r") as hf:
+        cal_list = hf[calibration_path]
+        calibration = {"zero": cal_list[0], "gain": cal_list[1], "nonlin": cal_list[2]}
+        # Squeeze to collapse 1-length dimensions
+        channel_counts = np.squeeze(hf[h5path])
+        # Calculate channel energies (in eV) from calibration
+    channel_energy = np.array(
+        [
+            (calibration["zero"] + calibration["gain"] * _i) * 1000
+            for _i in range(len(channel_counts))
+        ]
+    )
+
+    return h5path, selection, calibration, channel_counts, channel_energy
 
 
 def run_auto_pymca(
-    inputFile,
+    src_data_file,
     omega,
     transmission,
     samplexyz,
-    acqTime,
+    acq_time,
     beam_energy,
-    CFGFile=None,
-    peaksFile=None,
+    src_cfg_file=None,
+    peaks_file=None,
     h5path=None,
 ):
-    if not inputFile.endswith((".dat", ".mca", ".h5")):
-        raise ValueError("inputFile must end with .dat, .mca or .h5")
+    # Set paths
+    src_data_dir = Path(src_data_file).parent
+    filename_stem = Path(src_data_file).stem
+    filename = Path(src_data_file).name
+    filepath_parts = Path(src_data_file).parts
+    visit_dir = Path(*filepath_parts[:6])
+    rel_dir_path = Path(*filepath_parts[6:-1])
+    mca_path = src_data_dir / f"{filename_stem}.mca"
+
+    if not src_data_file.endswith((".dat", ".mca", ".h5", ".nxs")):
+        raise ValueError("Input file must end with .dat, .mca, .h5", "nxs")
     # For historical purposes, .dat given as input by GDA but .mca file is used
-    if inputFile.endswith(".dat"):
-        inputFile = os.path.splitext(inputFile)[0] + ".mca"
+    if src_data_file.endswith(".dat"):
+        src_data_file = (
+            os.path.splitext(src_data_file)[0] + ".mca"
+        )  # TODO replace the use of this with mca_path
 
-    selection = {}
-    if h5py.is_hdf5(inputFile):
-        if not h5path:
-            h5path = "entry/data/data"
-        h5path_parts = Path(h5path).parts
-        if h5path_parts[0] == os.sep:
-            root_group = h5path_parts[1]
-            y_data_path = "/" + "/".join(h5path_parts[2:])
+    if h5py.is_hdf5(src_data_file):
+        src_cfg_file = pkg_resources.get_resource_filename(
+            __name__, "data/pymca_new.cfg"
+        )
+        h5path, selection, calibration, channel_counts, channel_energy = read_h5file(
+            src_data_file, h5path
+        )  # TODO check if h5path is needed as an output here
+        # Create a .mca file (not used by this code but a more user friendly file format for PyMCA GUI)
+        spectrum_to_mca(channel_counts, calibration, mca_path, src_data_file, selection)
+
+    elif src_data_file.endswith((".dat", ".mca")):
+        src_data_file = mca_path
+        dat_path = src_data_dir / f"{filename_stem}.dat"
+        selection = {}
+        spectrum_data = np.loadtxt(dat_path, delimiter="\t", skiprows=3, usecols=(0, 1))
+        channel_energy = spectrum_data[:, 0]
+        channel_counts = spectrum_data[:, 1]
+
+        if src_cfg_file is None:
+            beamline = filepath_parts[2]
+            src_cfg_file = Path("/dls_sw") / beamline / "software/pymca/pymca_new.cfg"
         else:
-            root_group = h5path_parts[0]
-            y_data_path = "/" + "/".join(h5path_parts[1:])
-        selection = {"entry": root_group, "y": y_data_path}
+            src_cfg_file = Path(src_cfg_file)
 
-    FilePrefix = os.path.splitext(os.path.basename(inputFile))[0]
-    file_name = os.path.basename(inputFile)
-    pure_path = PurePath(inputFile).parts
-    VisitDir = pure_path[:6]
-    RestOfFilename = os.path.join(*pure_path[6:])
-    RestOfDirs = os.path.dirname(RestOfFilename)
-    BEAMLINE = pure_path[2]
+    if not src_cfg_file.exists():
+        raise FileNotFoundError(f"Config file '{src_cfg_file}' does not exist")
 
+    energy_keV = float(beam_energy) / 1000.0
     peaks = None
     cutoff_offset = 1000
 
-    if CFGFile is None:
-        CFGFile = os.path.join("/dls_sw", BEAMLINE, "software/pymca/pymca_new.cfg")
+    output_dir = visit_dir / "processed" / "pymca" / rel_dir_path
+    data_dir = output_dir / "data"
+    results_dir = output_dir / "out"
+    data_file = data_dir / filename
+    cfg_file = output_dir / f"{filename_stem}.cfg"
 
-    if not os.path.isfile(CFGFile):
-        raise FileNotFoundError(f"Config file '{CFGFile}' does not exist")
+    data_dir.mkdir(parents=True, exist_ok=True)
+    results_dir.mkdir(parents=True, exist_ok=True)
 
-    energy_keV = float(beam_energy) / 1000.0
+    os.chdir(output_dir)  # TODO check if changing directory is really needed
+    shutil.copyfile(src_data_file, data_file)
+    shutil.copyfile(src_cfg_file, cfg_file)
 
-    OutputDir = os.path.join(*VisitDir, "processed/pymca", RestOfDirs)
-    DataDir = os.path.join(OutputDir, "data")
-    ResultsDir = os.path.join(OutputDir, "out")
-    cfg_path = os.path.join(OutputDir, FilePrefix + ".cfg")
-
-    Path(OutputDir).mkdir(parents=True, exist_ok=True)
-    Path(DataDir).mkdir(parents=True, exist_ok=True)
-    Path(ResultsDir).mkdir(parents=True, exist_ok=True)
-
-    os.chdir(OutputDir)
-    shutil.copy2(inputFile, DataDir)
-    shutil.copyfile(CFGFile, cfg_path)
-
-    if peaksFile is not None:
-        with open(peaksFile) as f:
+    if peaks_file is not None:
+        with open(peaks_file) as f:
             peaks = f.read()
     else:
         peaks = parse_elements(beam_energy)
 
-    configure_cfg(cfg_path, peaks, energy_keV)
+    configure_cfg(cfg_file, peaks, energy_keV)
 
-    file_path = os.path.join(DataDir, file_name)
+    if not cfg_file.exists():
+        raise FileNotFoundError(f"File {cfg_file} does not exist")
 
-    if not os.path.isfile(cfg_path):
-        raise FileNotFoundError(f"File {cfg_path} does not exist")
-
-    if not os.path.isfile(file_path):
-        raise FileNotFoundError(f"File {file_path} does not exist")
+    if not data_file.exists():
+        raise FileNotFoundError(f"File {data_file} does not exist")
 
     b = McaAdvancedFitBatch.McaAdvancedFitBatch(
-        cfg_path, [file_path], "out", 0, 250.0, selection=selection
+        cfg_file, [data_file], "out", 0, 250.0, selection=selection
     )
     # ProcessList method fits data and writes results to .h5 file
     b.processList()
-    DatOut = os.path.join(ResultsDir, FilePrefix + ".h5")
+    fit_data_file = results_dir / f"{filename_stem}.h5"
 
-    if not os.path.isfile(DatOut):
-        raise FileNotFoundError(f"Results file {DatOut} could not be opened")
+    if not fit_data_file.exists():
+        raise FileNotFoundError(f"Results file {fit_data_file} could not be opened")
 
-    peaks = parse_spec_fit(DatOut)
+    peaks = parse_spec_fit(fit_data_file)
 
-    ResultsFile = os.path.join(OutputDir, FilePrefix) + ".results.dat"
+    results_file = output_dir / f"{filename_stem}.results.dat"
     results_txt = [f"{peak[0]} {peak[1]} {peak[2]}" for peak in peaks]
     results_txt = "\n".join(results_txt)
-    with open(ResultsFile, "w") as f:
+    with open(results_file, "w") as f:
         f.write(results_txt)
 
     # Read and plot the spectrum data
-    if h5py.is_hdf5(inputFile):
+    if h5py.is_hdf5(src_data_file):
         # Read the calibration from config file
-        calib = {}
-        with open(cfg_path) as f:
+        calibration = {}
+        with open(cfg_file) as f:
             for line in f:
                 # Uses regex to extract the zero and gain calibration values
                 if match := re.match(r"^(zero|gain) = (\d+(?:\.\d+)?)$", line.strip()):
                     param, value = match.groups()
-                    calib[param] = float(value)
+                    calibration[param] = float(value)
         # Read in spectrum data counts
-        with h5py.File(inputFile, "r") as hf:
+        with h5py.File(src_data_file, "r") as hf:
             # Squeeze to collapse 1-length dimensions
             channel_counts = np.squeeze(hf[h5path])
         # Calculate channel energies (in eV) from calibration
         channel_energy = np.array(
             [
-                (calib["zero"] + calib["gain"] * _i) * 1000
+                (calibration["zero"] + calibration["gain"] * _i) * 1000
                 for _i in range(len(channel_counts))
             ]
         )
-        mca_out = os.path.splitext(inputFile)[0] + ".mca"
+        mca_path = os.path.splitext(src_data_file)[0] + ".mca"
         # Create a .mca file (not used by this code but a more user friendly file format for PyMCA GUI)
-        spectrum_to_mca(channel_counts, calib, mca_out, inputFile, selection)
+        spectrum_to_mca(channel_counts, calibration, mca_path, src_data_file, selection)
 
     else:
-        rawDatFile = os.path.splitext(inputFile)[0] + ".dat"
+        rawDatFile = os.path.splitext(src_data_file)[0] + ".dat"
         spectrum_data = np.loadtxt(
             rawDatFile, delimiter="\t", skiprows=3, usecols=(0, 1)
         )
@@ -403,60 +430,50 @@ def run_auto_pymca(
         channel_energy, channel_counts, beam_energy, peaks, cutoff_offset
     )
 
-    outFile = os.path.splitext(inputFile)[0] + ".png"
+    plot_output_file = src_data_dir / f"{filename_stem}.png"
 
     plot_fluorescence_spectrum(
-        outFile,
-        inputFile,
+        plot_output_file,
+        src_data_file,
         channel_energy,
         channel_counts,
         beam_energy,
-        offset=cutoff_offset,
+        cutoff_offset,
     )
 
-    pure_path = PurePath(inputFile).parts
-    currentvisit = pure_path[5]
-    ScanName = os.path.basename(inputFile)
-    RelNameHtml = os.path.join(*pure_path[6:])
-    OutputDir = os.path.dirname(inputFile).replace(
-        currentvisit, os.path.join(currentvisit, "jpegs")
-    )
-    ScanNumber = os.path.splitext(ScanName)[0]
+    snapshot_dir = src_data_dir / "jpegs" / rel_dir_path
 
     # Find crystal snapshot if it exists
     try:
-        RelPNGfile = sorted(
-            glob(os.path.join(OutputDir, ScanNumber) + "*[0-9].png"),
-            key=os.path.getmtime,
+        snapshot_files = sorted(
+            snapshot_dir.glob(f"{filename_stem}*[0-9].png"),
+            key=lambda p: p.stat().st_mtime,
         )
-        pure_path = PurePath(RelPNGfile[0]).parts
-        RelPNGfile = os.path.join(*pure_path[7:])
+        snapshot_filename = snapshot_files[0].name
     except Exception:
-        RelPNGfile = ""
+        snapshot_filename = ""
 
-    Path(OutputDir).mkdir(parents=True, exist_ok=True)
-
-    HtmlFile = os.path.splitext(inputFile)[0] + ".html"
+    html_file = src_data_dir / f"{filename_stem}.html"
 
     timestamp = datetime.now().strftime("%a %b %-d, %Y - %T")
 
-    HtmlFileContents = f"""<html><head><title>{ScanName}</title></head><body>
+    html_file_contents = f"""<html><head><title>{filename}</title></head><body>
 <style type="text/css">
 table td {{ padding: 5px;}}
 table.table2 {{ border-collapse: collapse;}}
 table.table2 td {{ border-style: none; font-size: 80%; padding: 2px;}}
 </style>
-<table border width=640><tr><td align=center>{timestamp}<br/><a href="{RelNameHtml}">{ScanName}</a></td></tr>
+<table border width=640><tr><td align=center>{timestamp}<br/><a href="{rel_dir_path}">{filename}</a></td></tr>
 <tr><td><table class="table2" width=100%>
 <tr><th colspan=4 align=center>Fluorescence Spectrum</td></tr>
 <tr><td>Beamline Energy:</td><td>{beam_energy}eV</td><td>Omega:</td><td>{omega}&deg;</td></tr>
-<tr><td>Acq Time:</td><td>{acqTime}s</td><td>Trans:</td><td>{transmission}%</td></tr>
+<tr><td>Acq Time:</td><td>{acq_time}s</td><td>Trans:</td><td>{transmission}%</td></tr>
 <tr><td>Sample Position:</td><td colspan=3>{samplexyz}</td></tr>
 </table></td></tr>
 <tr><td>Automated PyMca results<br /><pre>{pymca_output}</pre><a href="http://www.diamond.ac.uk/dms/MX/Common/Interpreting-AutoPyMCA/Interpreting%20AutoPyMCA.pdf">Guide to AutoPyMCA</a> (pdf)</td></tr>
-<tr><td><img src="{outFile}" /></td></tr>
-<tr><td><img src="jpegs/{RelPNGfile}" alt="Snapshot not taken" width=640 /></td></tr></table>
+<tr><td><img src="{plot_output_file}" /></td></tr>
+<tr><td><img src="{snapshot_dir/snapshot_filename}" alt="Snapshot not taken" width=640 /></td></tr></table>
 """
 
-    with open(HtmlFile, "w") as f:
-        f.write(HtmlFileContents)
+    with open(html_file, "w") as f:
+        f.write(html_file_contents)
