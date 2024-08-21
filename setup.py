@@ -18,6 +18,8 @@ setup(
     ],
     packages=find_packages("src"),
     package_dir={"": "src"},
+    include_package_data=True,
+    package_data={"pymca-zocalo": ["data/pymca_new.cfg"]},
     install_requires=[
         # pymca and xraylib required but listing here causes error when zocalo resolves environment
         # "pymca",

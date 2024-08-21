@@ -182,18 +182,17 @@ def parse_elements(energy):
         "L": xrl.L3_SHELL,
     }
 
-    def _check_edge(element):
-        symbol, edge = element
+    def _check_edge(symbol, edge):
         Z = xrl.SymbolToAtomicNumber(symbol)
         shell = edge_mapper[edge]
         return float(energy) > xrl.EdgeEnergy(Z, shell) * 1000.0
 
-    return "\n".join(
-        (
-            "{} = {}".format(*element)
-            for element in filter(_check_edge, elements.items())
-        )
-    )
+    valid_peaks = {}
+    for symbol, edge in elements.items:
+        if _check_edge(symbol, edge):
+            valid_peaks[symbol] = edge
+
+    return valid_peaks
 
 
 def spectrum_to_mca(channel_counts, calib, output_file, input_file, selection):
@@ -275,7 +274,7 @@ def read_h5file(src_data_file, h5path):
     calibration_path = Path(h5path).parent / "calibration"
     with h5py.File(src_data_file, "r") as hf:
         cal_list = hf[calibration_path]
-        calibration = {"zero": cal_list[0], "gain": cal_list[1], "nonlin": cal_list[2]}
+        calibration = {"zero": cal_list[0], "gain": cal_list[1]}
         # Squeeze to collapse 1-length dimensions
         channel_counts = np.squeeze(hf[h5path])
         # Calculate channel energies (in eV) from calibration
@@ -297,7 +296,6 @@ def run_auto_pymca(
     acq_time,
     beam_energy,
     src_cfg_file=None,
-    peaks_file=None,
     h5path=None,
 ):
     # Set paths
@@ -309,13 +307,19 @@ def run_auto_pymca(
     rel_dir_path = Path(*filepath_parts[6:-1])
     mca_path = src_data_dir / f"{filename_stem}.mca"
 
-    if not src_data_file.endswith((".dat", ".mca", ".h5", ".nxs")):
+    if not src_data_file.endswith(
+        (".dat", ".mca", ".h5", ".nxs")
+    ):  # TODO remove this and just use the checks below to deal with this.
         raise ValueError("Input file must end with .dat, .mca, .h5", "nxs")
-    # For historical purposes, .dat given as input by GDA but .mca file is used
+
     if src_data_file.endswith(".dat"):
         src_data_file = (
             os.path.splitext(src_data_file)[0] + ".mca"
         )  # TODO replace the use of this with mca_path
+
+    config_changes = {}
+    energy_kev = float(beam_energy) / 1000.0
+    cutoff_offset = 1000
 
     if h5py.is_hdf5(src_data_file):
         src_cfg_file = pkg_resources.get_resource_filename(
@@ -326,6 +330,12 @@ def run_auto_pymca(
         )  # TODO check if h5path is needed as an output here
         # Create a .mca file (not used by this code but a more user friendly file format for PyMCA GUI)
         spectrum_to_mca(channel_counts, calibration, mca_path, src_data_file, selection)
+
+        config_changes["detector"]["zero"] = calibration["zero"]
+        config_changes["detector"]["gain"] = calibration["gain"]
+        config_changes["fit"]["xmax"] = np.argmax(
+            channel_energy > beam_energy - cutoff_offset
+        )
 
     elif src_data_file.endswith((".dat", ".mca")):
         src_data_file = mca_path
@@ -344,9 +354,9 @@ def run_auto_pymca(
     if not src_cfg_file.exists():
         raise FileNotFoundError(f"Config file '{src_cfg_file}' does not exist")
 
-    energy_keV = float(beam_energy) / 1000.0
-    peaks = None
+    energy_kev = float(beam_energy) / 1000.0
     cutoff_offset = 1000
+    peaks = None
 
     output_dir = visit_dir / "processed" / "pymca" / rel_dir_path
     data_dir = output_dir / "data"
@@ -361,13 +371,9 @@ def run_auto_pymca(
     shutil.copyfile(src_data_file, data_file)
     shutil.copyfile(src_cfg_file, cfg_file)
 
-    if peaks_file is not None:
-        with open(peaks_file) as f:
-            peaks = f.read()
-    else:
-        peaks = parse_elements(beam_energy)
+    peaks = parse_elements(beam_energy)
 
-    configure_cfg(cfg_file, peaks, energy_keV)
+    # configure_cfg(cfg_file, peaks, energy_keV) #TODO remove this
 
     if not cfg_file.exists():
         raise FileNotFoundError(f"File {cfg_file} does not exist")
@@ -375,11 +381,20 @@ def run_auto_pymca(
     if not data_file.exists():
         raise FileNotFoundError(f"File {data_file} does not exist")
 
-    b = McaAdvancedFitBatch.McaAdvancedFitBatch(
-        cfg_file, [data_file], "out", 0, 250.0, selection=selection
+    # Create a batch fit object
+    pymca_batch_fit_obj = McaAdvancedFitBatch.McaAdvancedFitBatch(
+        src_cfg_file, [data_file], results_dir, 0, 250.0, selection=selection
     )
+    # Extract. edit and write new config to file
+    config_dict = pymca_batch_fit_obj.mcafit.config
+    config_dict.update(config_changes)
+    if not config_dict.get("peaks"):
+        config_dict["peaks"] = peaks
+    config_dict["fit"]["energy"][0] = energy_kev
+    config_dict.write(cfg_file)
+
     # ProcessList method fits data and writes results to .h5 file
-    b.processList()
+    pymca_batch_fit_obj.processList()
     fit_data_file = results_dir / f"{filename_stem}.h5"
 
     if not fit_data_file.exists():
@@ -392,39 +407,6 @@ def run_auto_pymca(
     results_txt = "\n".join(results_txt)
     with open(results_file, "w") as f:
         f.write(results_txt)
-
-    # Read and plot the spectrum data
-    if h5py.is_hdf5(src_data_file):
-        # Read the calibration from config file
-        calibration = {}
-        with open(cfg_file) as f:
-            for line in f:
-                # Uses regex to extract the zero and gain calibration values
-                if match := re.match(r"^(zero|gain) = (\d+(?:\.\d+)?)$", line.strip()):
-                    param, value = match.groups()
-                    calibration[param] = float(value)
-        # Read in spectrum data counts
-        with h5py.File(src_data_file, "r") as hf:
-            # Squeeze to collapse 1-length dimensions
-            channel_counts = np.squeeze(hf[h5path])
-        # Calculate channel energies (in eV) from calibration
-        channel_energy = np.array(
-            [
-                (calibration["zero"] + calibration["gain"] * _i) * 1000
-                for _i in range(len(channel_counts))
-            ]
-        )
-        mca_path = os.path.splitext(src_data_file)[0] + ".mca"
-        # Create a .mca file (not used by this code but a more user friendly file format for PyMCA GUI)
-        spectrum_to_mca(channel_counts, calibration, mca_path, src_data_file, selection)
-
-    else:
-        rawDatFile = os.path.splitext(src_data_file)[0] + ".dat"
-        spectrum_data = np.loadtxt(
-            rawDatFile, delimiter="\t", skiprows=3, usecols=(0, 1)
-        )
-        channel_energy = spectrum_data[:, 0]
-        channel_counts = spectrum_data[:, 1]
 
     pymca_output = parse_raw_fluoro(
         channel_energy, channel_counts, beam_energy, peaks, cutoff_offset

@@ -63,7 +63,6 @@ class DLSPyMcaFitter(CommonService):
                 params["acqTime"],
                 float(params["energy"]),
                 cfgFile=params.get("cfgFile"),
-                peaksFile=params.get("peaksFile"),
                 h5path=params.get("h5path"),
             )
         except Exception as e:
