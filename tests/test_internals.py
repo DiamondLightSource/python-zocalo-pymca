@@ -43,7 +43,7 @@ def test_GIVEN_examplar_data_in_h5file_and_cfg_file_WHEN_run_auto_pymca_called_T
         "(0, 0, 0)",
         "1.0",
         18000.0,
-        CFGFile=temp_config_file,
+        src_cfg_file=temp_config_file,
     )
     tmp_file_basename = Path(temp_input_file).stem
     output_mca = mock_visit_directory / f"{tmp_file_basename}.mca"
