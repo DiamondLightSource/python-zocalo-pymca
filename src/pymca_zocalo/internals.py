@@ -2,12 +2,12 @@ import os
 import re
 import shutil
 from datetime import datetime
+from importlib import resources
 from pathlib import Path
 
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-import pkg_resources
 import xraylib as xrl
 from PyMca5.PyMca import McaAdvancedFitBatch
 
@@ -260,7 +260,7 @@ def plot_fluorescence_spectrum(
 
 def read_h5file(src_data_file, h5path):
     if not h5path:
-        h5path = "entry/data/data"
+        h5path = "entry/instrument/detector/data"
     h5path_parts = Path(h5path).parts
     if h5path_parts[0] == os.sep:
         root_group = h5path_parts[1]
@@ -273,10 +273,10 @@ def read_h5file(src_data_file, h5path):
     # Read in data from h5 file
     calibration_path = Path(h5path).parent / "calibration"
     with h5py.File(src_data_file, "r") as hf:
-        cal_list = hf[calibration_path]
+        cal_list = hf[str(calibration_path)]
         calibration = {"zero": cal_list[0], "gain": cal_list[1]}
         # Squeeze to collapse 1-length dimensions
-        channel_counts = np.squeeze(hf[h5path])
+        channel_counts = np.squeeze(hf[str(h5path)])
         # Calculate channel energies (in eV) from calibration
     channel_energy = np.array(
         [
@@ -322,20 +322,20 @@ def run_auto_pymca(
     cutoff_offset = 1000
 
     if h5py.is_hdf5(src_data_file):
-        src_cfg_file = pkg_resources.get_resource_filename(
-            __name__, "data/pymca_new.cfg"
-        )
+        src_cfg_file = resources.as_file(Path("data/pymca_new.cfg"))
         h5path, selection, calibration, channel_counts, channel_energy = read_h5file(
             src_data_file, h5path
         )  # TODO check if h5path is needed as an output here
         # Create a .mca file (not used by this code but a more user friendly file format for PyMCA GUI)
         spectrum_to_mca(channel_counts, calibration, mca_path, src_data_file, selection)
 
-        config_changes["detector"]["zero"] = calibration["zero"]
-        config_changes["detector"]["gain"] = calibration["gain"]
-        config_changes["fit"]["xmax"] = np.argmax(
-            channel_energy > beam_energy - cutoff_offset
-        )
+        config_changes["detector"] = {
+            "zero": calibration["zero"],
+            "gain": calibration["gain"],
+        }
+        config_changes["fit"] = {
+            "xmax": np.argmax(channel_energy > beam_energy - cutoff_offset)
+        }
 
     elif src_data_file.endswith((".dat", ".mca")):
         src_data_file = mca_path
@@ -387,7 +387,8 @@ def run_auto_pymca(
     )
     # Extract. edit and write new config to file
     config_dict = pymca_batch_fit_obj.mcafit.config
-    config_dict.update(config_changes)
+    for main_dict, sub_dict in config_changes.items():
+        config_dict[main_dict].update(sub_dict)
     if not config_dict.get("peaks"):
         config_dict["peaks"] = peaks
     config_dict["fit"]["energy"][0] = energy_kev
