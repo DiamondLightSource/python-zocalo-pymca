@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xraylib as xrl
 from PyMca5.PyMca import McaAdvancedFitBatch
+from PyMca5.PyMcaIO import ConfigDict
 
 
 def parse_raw_fluoro(channel_energy, channel_counts, beam_energy, peaks, offset):
@@ -188,7 +189,7 @@ def parse_elements(energy):
         return float(energy) > xrl.EdgeEnergy(Z, shell) * 1000.0
 
     valid_peaks = {}
-    for symbol, edge in elements.items:
+    for symbol, edge in elements.items():
         if _check_edge(symbol, edge):
             valid_peaks[symbol] = edge
 
@@ -322,7 +323,7 @@ def run_auto_pymca(
     cutoff_offset = 1000
 
     if h5py.is_hdf5(src_data_file):
-        src_cfg_file = resources.as_file(Path("data/pymca_new.cfg"))
+        src_cfg_file = resources.files("pymca_zocalo.data") / "pymca_new.cfg"
         h5path, selection, calibration, channel_counts, channel_energy = read_h5file(
             src_data_file, h5path
         )  # TODO check if h5path is needed as an output here
@@ -369,30 +370,31 @@ def run_auto_pymca(
 
     os.chdir(output_dir)  # TODO check if changing directory is really needed
     shutil.copyfile(src_data_file, data_file)
-    shutil.copyfile(src_cfg_file, cfg_file)
 
-    peaks = parse_elements(beam_energy)
+    peaks = parse_elements(beam_energy - cutoff_offset)
 
     # configure_cfg(cfg_file, peaks, energy_keV) #TODO remove this
-
-    if not cfg_file.exists():
-        raise FileNotFoundError(f"File {cfg_file} does not exist")
 
     if not data_file.exists():
         raise FileNotFoundError(f"File {data_file} does not exist")
 
-    # Create a batch fit object
-    pymca_batch_fit_obj = McaAdvancedFitBatch.McaAdvancedFitBatch(
-        src_cfg_file, [data_file], results_dir, 0, 250.0, selection=selection
-    )
-    # Extract. edit and write new config to file
-    config_dict = pymca_batch_fit_obj.mcafit.config
+    # Extract, edit and write new config to file
+    config_dict = ConfigDict.ConfigDict()
+    config_dict.read(src_cfg_file)
     for main_dict, sub_dict in config_changes.items():
         config_dict[main_dict].update(sub_dict)
     if not config_dict.get("peaks"):
         config_dict["peaks"] = peaks
     config_dict["fit"]["energy"][0] = energy_kev
     config_dict.write(cfg_file)
+
+    if not cfg_file.exists():
+        raise FileNotFoundError(f"File {cfg_file} does not exist")
+
+    # Create a batch fit object
+    pymca_batch_fit_obj = McaAdvancedFitBatch.McaAdvancedFitBatch(
+        str(cfg_file), [str(data_file)], str(results_dir), 0, 250.0, selection=selection
+    )
 
     # ProcessList method fits data and writes results to .h5 file
     pymca_batch_fit_obj.processList()
