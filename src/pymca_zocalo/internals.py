@@ -260,8 +260,6 @@ def plot_fluorescence_spectrum(
 
 
 def read_h5file(src_data_file, h5path):
-    if not h5path:
-        h5path = "entry/instrument/detector/data"
     h5path_parts = Path(h5path).parts
     if h5path_parts[0] == os.sep:
         root_group = h5path_parts[1]
@@ -286,7 +284,7 @@ def read_h5file(src_data_file, h5path):
         ]
     )
 
-    return h5path, selection, calibration, channel_counts, channel_energy
+    return selection, calibration, channel_counts, channel_energy
 
 
 def run_auto_pymca(
@@ -308,25 +306,17 @@ def run_auto_pymca(
     rel_dir_path = Path(*filepath_parts[6:-1])
     mca_path = src_data_dir / f"{filename_stem}.mca"
 
-    if not src_data_file.endswith(
-        (".dat", ".mca", ".h5", ".nxs")
-    ):  # TODO remove this and just use the checks below to deal with this.
-        raise ValueError("Input file must end with .dat, .mca, .h5", "nxs")
-
-    if src_data_file.endswith(".dat"):
-        src_data_file = (
-            os.path.splitext(src_data_file)[0] + ".mca"
-        )  # TODO replace the use of this with mca_path
-
     config_changes = {}
     energy_kev = float(beam_energy) / 1000.0
     cutoff_offset = 1000
 
     if h5py.is_hdf5(src_data_file):
         src_cfg_file = resources.files("pymca_zocalo.data") / "pymca_new.cfg"
-        h5path, selection, calibration, channel_counts, channel_energy = read_h5file(
+        if not h5path:
+            h5path = "entry/instrument/detector/data"
+        selection, calibration, channel_counts, channel_energy = read_h5file(
             src_data_file, h5path
-        )  # TODO check if h5path is needed as an output here
+        )
         # Create a .mca file (not used by this code but a more user friendly file format for PyMCA GUI)
         spectrum_to_mca(channel_counts, calibration, mca_path, src_data_file, selection)
 
@@ -352,6 +342,11 @@ def run_auto_pymca(
         else:
             src_cfg_file = Path(src_cfg_file)
 
+    else:
+        raise ValueError(
+            "Invalid input file - Input file must be in .dat, .mca, or hdf5 format"
+        )
+
     if not src_cfg_file.exists():
         raise FileNotFoundError(f"Config file '{src_cfg_file}' does not exist")
 
@@ -368,12 +363,9 @@ def run_auto_pymca(
     data_dir.mkdir(parents=True, exist_ok=True)
     results_dir.mkdir(parents=True, exist_ok=True)
 
-    os.chdir(output_dir)  # TODO check if changing directory is really needed
     shutil.copyfile(src_data_file, data_file)
 
     peaks = parse_elements(beam_energy - cutoff_offset)
-
-    # configure_cfg(cfg_file, peaks, energy_keV) #TODO remove this
 
     if not data_file.exists():
         raise FileNotFoundError(f"File {data_file} does not exist")
