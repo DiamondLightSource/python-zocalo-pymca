@@ -39,4 +39,4 @@ jobs:
 
       - name: Test
         run: |
-          docker run docker.io/library/test "/opt/pymca/bin/pytest" /tmp/pymca
+          docker run -w /tmp/pymca docker.io/library/test "/opt/pymca/bin/pytest" /tmp/pymca
