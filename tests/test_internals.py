@@ -7,7 +7,7 @@ import pymca_zocalo.internals as internals
 from pytest import raises
 
 
-def test_GIVEN_examplar_data_in_h5file_and_cfg_file_WHEN_run_auto_pymca_called_THEN_produces_expected_files(
+def test_GIVEN_examplar_data_in_h5file_WHEN_run_auto_pymca_called_THEN_produces_expected_files(
     tmpdir,
 ):
     mock_visit_directory = Path(tmpdir) / "nt37183-3"
