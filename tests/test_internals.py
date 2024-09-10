@@ -1,3 +1,4 @@
+import os
 import shutil
 from pathlib import Path
 
@@ -16,11 +17,14 @@ def mock_visit_directory(tmp_path):
 
 
 def test_GIVEN_examplar_data_in_h5file_and_cfg_file_WHEN_run_auto_pymca_called_THEN_produces_expected_files(
-    mock_visit_directory,
+    tmpdir,
 ):
+    mock_visit_directory = Path(tmpdir) / "nt37183-3"
     test_data_file = Path("tests/sample_data.h5")
     temp_input_file = mock_visit_directory / test_data_file.name
+    os.makedirs(mock_visit_directory, exist_ok=False)
     shutil.copyfile(test_data_file, temp_input_file)
+
     internals.run_auto_pymca(
         str(temp_input_file),
         "0.0",
@@ -29,6 +33,7 @@ def test_GIVEN_examplar_data_in_h5file_and_cfg_file_WHEN_run_auto_pymca_called_T
         "1.0",
         12700.0,
     )
+
     tmp_file_basename = Path(temp_input_file).stem
     output_mca = mock_visit_directory / f"{tmp_file_basename}.mca"
     output_html = mock_visit_directory / f"{tmp_file_basename}.html"
@@ -42,8 +47,10 @@ def test_GIVEN_examplar_data_in_h5file_and_cfg_file_WHEN_run_auto_pymca_called_T
 
 
 def test_GIVEN_examplar_data_in_mca_format_WHEN_run_auto_pymca_called_THEN_produces_expected_files(
-    mock_visit_directory,
+    tmpdir,
 ):
+    mock_visit_directory = Path(tmpdir) / "nt37183-3"
+    os.makedirs(mock_visit_directory, exist_ok=False)
     test_mca_file = Path("tests/sample_data.mca")
     test_dat_file = Path("tests/sample_data.dat")
     test_cfg_file = Path("tests/pymca_new.cfg")
@@ -53,6 +60,7 @@ def test_GIVEN_examplar_data_in_mca_format_WHEN_run_auto_pymca_called_THEN_produ
     shutil.copyfile(test_mca_file, temp_mca_file)
     shutil.copyfile(test_dat_file, temp_dat_file)
     shutil.copyfile(test_cfg_file, temp_cfg_file)
+
     internals.run_auto_pymca(
         str(temp_mca_file),
         "0.0",
@@ -62,6 +70,7 @@ def test_GIVEN_examplar_data_in_mca_format_WHEN_run_auto_pymca_called_THEN_produ
         18000.0,
         src_cfg_file=temp_cfg_file,
     )
+
     tmp_file_basename = Path(temp_mca_file).stem
     output_mca = mock_visit_directory / f"{tmp_file_basename}.mca"
     output_html = mock_visit_directory / f"{tmp_file_basename}.html"
@@ -75,8 +84,10 @@ def test_GIVEN_examplar_data_in_mca_format_WHEN_run_auto_pymca_called_THEN_produ
 
 
 def test_GIVEN_examplar_data_in_dat_format_WHEN_run_auto_pymca_called_THEN_produces_expected_files(
-    mock_visit_directory,
+    tmpdir,
 ):
+    mock_visit_directory = Path(tmpdir) / "nt37183-3"
+    os.makedirs(mock_visit_directory, exist_ok=False)
     test_mca_file = Path("tests/sample_data.mca")
     test_dat_file = Path("tests/sample_data.dat")
     test_cfg_file = Path("tests/pymca_new.cfg")
@@ -86,6 +97,7 @@ def test_GIVEN_examplar_data_in_dat_format_WHEN_run_auto_pymca_called_THEN_produ
     shutil.copyfile(test_mca_file, temp_mca_file)
     shutil.copyfile(test_dat_file, temp_dat_file)
     shutil.copyfile(test_cfg_file, temp_cfg_file)
+
     internals.run_auto_pymca(
         str(temp_dat_file),
         "0.0",
@@ -95,6 +107,7 @@ def test_GIVEN_examplar_data_in_dat_format_WHEN_run_auto_pymca_called_THEN_produ
         18000.0,
         src_cfg_file=temp_cfg_file,
     )
+
     tmp_file_basename = Path(temp_mca_file).stem
     output_mca = mock_visit_directory / f"{tmp_file_basename}.mca"
     output_html = mock_visit_directory / f"{tmp_file_basename}.html"
