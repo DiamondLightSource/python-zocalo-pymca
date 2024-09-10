@@ -4,16 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import pymca_zocalo.internals as internals
-from pytest import fixture, raises
-
-
-@fixture
-def mock_visit_directory(tmp_path):
-    # Note, this works because tmp_path has four levels, putting the visit at the 5th level (matching /dls structure)
-    custom_dir = tmp_path / "nt37183-3"
-    custom_dir.mkdir(parents=True)
-    yield custom_dir
-    shutil.rmtree(custom_dir)
+from pytest import raises
 
 
 def test_GIVEN_examplar_data_in_h5file_and_cfg_file_WHEN_run_auto_pymca_called_THEN_produces_expected_files(
