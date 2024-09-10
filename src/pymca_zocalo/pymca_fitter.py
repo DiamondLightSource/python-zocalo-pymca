@@ -3,16 +3,7 @@ from __future__ import absolute_import, division, print_function
 import workflows.recipe
 from workflows.services.common_service import CommonService
 
-from .internals import plot_fluorescence_spectrum
-
-PARAMETERS = [
-    "inputFile",
-    "omega",
-    "transmission",
-    "samplexyz",
-    "acqTime",
-    "energy",
-]
+from .internals import run_auto_pymca
 
 
 class DLSPyMcaFitter(CommonService):
@@ -35,11 +26,45 @@ class DLSPyMcaFitter(CommonService):
 
     def pymca_fitter_call(self, rw, header, message):
         """Call dispatcher"""
-        args = [rw.recipe_step.get("parameters", {}).get(param) for param in PARAMETERS]
+        params = rw.recipe_step.get("parameters", {}).copy()
 
-        self.log.debug("Commands: %s", " ".join(args))
+        # Deal with un-populated placeholders
+        req_placeholders = [
+            "{inputFile}",
+            "{energy}",
+        ]
+
+        opt_placeholders = [
+            "{omega}",
+            "{transmission}",
+            "{samplexyz}",
+            "{acqTime}",
+            "{cfgFile}",
+            "{h5path}",
+        ]
+
+        for key, value in params.items():
+            if value in req_placeholders:
+                self.log.error(
+                    f"Error running PyMca - Missing rquired parameter: '{key}'"
+                )
+                rw.transport.ack(header)
+                return
+            if value in opt_placeholders:
+                params[key] = None
+
+        self.log.debug(f"pymca_fitter running with params {params}")
         try:
-            plot_fluorescence_spectrum(*args)
+            run_auto_pymca(
+                params["inputFile"],
+                params["omega"],
+                params["transmission"],
+                params["samplexyz"],
+                params["acqTime"],
+                float(params["energy"]),
+                cfgFile=params.get("cfgFile"),
+                h5path=params.get("h5path"),
+            )
         except Exception as e:
             self.log.warning(f"Error running PyMca: {e}", exc_info=True)
             rw.transport.ack(header)

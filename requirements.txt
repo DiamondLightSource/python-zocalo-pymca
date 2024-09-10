@@ -1,5 +1,13 @@
-numpy
-pymca
+bump2version
+h5py
+matplotlib-base=3.8.4
+numpy=1.26.4
+pip
+pymca=5.9.3
+pytest
+pytest-runner
+setuptools
+wheel
 workflows>=1.7
-xraylib
+xraylib=4.1.4
 zocalo

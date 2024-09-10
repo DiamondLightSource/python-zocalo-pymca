@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="pymca-zocalo",
-    version="0.3.0",
+    version="1.0.0",
     description="PyMca components for automated data processing with Zocalo at Diamond Light Source",
     author="Tom Schoonjans",
     author_email="DataAnalysis@diamond.ac.uk",
@@ -12,12 +12,12 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Natural Language :: English",
         "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.11",
     ],
     packages=find_packages("src"),
     package_dir={"": "src"},
+    include_package_data=True,
+    package_data={"": ["*.cfg"]},
     install_requires=[
         # pymca and xraylib required but listing here causes error when zocalo resolves environment
         # "pymca",

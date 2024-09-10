@@ -1,10 +1,13 @@
 bump2version
+h5py
+matplotlib-base
+numpy
 pip
 pymca
 pytest
 pytest-runner
 setuptools
 wheel
-workflows
+workflows>=1.7
 xraylib
 zocalo
