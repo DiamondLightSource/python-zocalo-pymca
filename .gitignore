@@ -1,3 +1,5 @@
 __pycache__
 pymca_zocalo.egg-info/
-/build/
+.vscode/launch.json
+.vscode/settings.json
+build/*
