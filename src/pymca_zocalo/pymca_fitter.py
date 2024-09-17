@@ -62,7 +62,7 @@ class DLSPyMcaFitter(CommonService):
                 params["samplexyz"],
                 params["acqTime"],
                 float(params["energy"]),
-                cfgFile=params.get("cfgFile"),
+                src_cfg_file=params.get("cfgFile"),
                 h5path=params.get("h5path"),
             )
         except Exception as e:
