@@ -139,17 +139,18 @@ def configure_cfg(cfg_file, peaks, energy_kev):
         file.writelines(lines)
 
 
-def parse_elements(energy):
+def parse_elements(cutoff_energy, beamline):
     """
     Filters a dictionary of element/edge combinations likely to be encountered in an
      XRF experiment and returns those that are below the given photon energy.
     Args:
         energy (float): The energy level to filter the elements by, expressed in
          electron volts (eV).
+        beamline (str): The beamline that the MCA spectrum was recorded on.
 
     Returns:
-        str: A string representation of the filtered elements. Each element is on
-         a new line and is formatted as 'symbol = edge'.
+        dict[str]: A dictionary of the filtered elements and edges. The element and
+        edge form a key-value pair.
     """
     elements = {
         "Ti": "K",
@@ -177,6 +178,19 @@ def parse_elements(energy):
         "Hg": "L",
         "Pb": "L",
     }
+    # Additional elements for i23
+    i23_elements = {
+        "Na": "K",
+        "K": "K",
+        "Mg": "K",
+        "Mo": "L",
+        "P": "K",
+        "S": "K",
+        "Ag": "L",
+        "Cl": "K",
+        "Ca": "K",
+        "Cd": "L",
+    }
 
     edge_mapper = {
         "K": xrl.K_SHELL,
@@ -186,7 +200,10 @@ def parse_elements(energy):
     def _check_edge(symbol, edge):
         Z = xrl.SymbolToAtomicNumber(symbol)
         shell = edge_mapper[edge]
-        return float(energy) > xrl.EdgeEnergy(Z, shell) * 1000.0
+        return float(cutoff_energy) > xrl.EdgeEnergy(Z, shell) * 1000.0
+
+    if beamline == "i23":
+        elements.update(i23_elements)
 
     valid_peaks = {}
     for symbol, edge in elements.items():
@@ -305,6 +322,7 @@ def run_auto_pymca(
     visit_dir = Path(*filepath_parts[:6])
     rel_dir_path = Path(*filepath_parts[6:-1])
     mca_path = src_data_dir / f"{filename_stem}.mca"
+    beamline = filepath_parts[2]
 
     config_changes = {}
     energy_kev = float(beam_energy) / 1000.0
@@ -337,7 +355,6 @@ def run_auto_pymca(
         channel_counts = spectrum_data[:, 1]
 
         if src_cfg_file is None:
-            beamline = filepath_parts[2]
             src_cfg_file = Path("/dls_sw") / beamline / "software/pymca/pymca_new.cfg"
         else:
             src_cfg_file = Path(src_cfg_file)
@@ -365,7 +382,8 @@ def run_auto_pymca(
 
     shutil.copyfile(src_data_file, data_file)
 
-    peaks = parse_elements(beam_energy - cutoff_offset)
+    cutoff_energy = beam_energy - cutoff_offset
+    peaks = parse_elements(cutoff_energy, beamline)
 
     if not data_file.exists():
         raise FileNotFoundError(f"File {data_file} does not exist")
@@ -395,16 +413,16 @@ def run_auto_pymca(
     if not fit_data_file.exists():
         raise FileNotFoundError(f"Results file {fit_data_file} could not be opened")
 
-    peaks = parse_spec_fit(fit_data_file)
+    fitted_peaks = parse_spec_fit(fit_data_file)
 
     results_file = output_dir / f"{filename_stem}.results.dat"
-    results_txt = [f"{peak[0]} {peak[1]} {peak[2]}" for peak in peaks]
+    results_txt = [f"{peak[0]} {peak[1]} {peak[2]}" for peak in fitted_peaks]
     results_txt = "\n".join(results_txt)
     with open(results_file, "w") as f:
         f.write(results_txt)
 
     pymca_output = parse_raw_fluoro(
-        channel_energy, channel_counts, beam_energy, peaks, cutoff_offset
+        channel_energy, channel_counts, beam_energy, fitted_peaks, cutoff_offset
     )
 
     plot_output_file = src_data_dir / f"{filename_stem}.png"
