@@ -200,7 +200,7 @@ def parse_elements(cutoff_energy, beamline):
     def _check_edge(symbol, edge):
         Z = xrl.SymbolToAtomicNumber(symbol)
         shell = edge_mapper[edge]
-        return float(cutoff_energy) > xrl.EdgeEnergy(Z, shell) * 1000.0
+        return float(cutoff_energy) > xrl.LineEnergy(Z, shell) * 1000.0
 
     if beamline == "i23":
         elements.update(i23_elements)
