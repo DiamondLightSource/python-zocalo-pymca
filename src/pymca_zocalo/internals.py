@@ -31,9 +31,7 @@ def parse_raw_fluoro(channel_energy, channel_counts, beam_energy, peaks, offset)
     cutoff_energy = beam_energy - offset
     cutoff_idx = np.argmax(channel_energy > cutoff_energy)
     if not cutoff_idx:
-        raise ValueError(
-            "No cutoff index found - all recorded channels are too close in energy to the beam"
-        )
+        cutoff_idx = len(channel_energy)
     total_count = np.sum(channel_counts[0:cutoff_idx])
     # Maximum of 2 counts per channel contribute to background
     background_count = np.sum(np.minimum(2, channel_counts[0:cutoff_idx]))
@@ -139,13 +137,16 @@ def configure_cfg(cfg_file, peaks, energy_kev):
         file.writelines(lines)
 
 
-def parse_elements(cutoff_energy, beamline):
+def parse_elements(cutoff_energy, first_channel_energy, beamline):
     """
     Filters a dictionary of element/edge combinations likely to be encountered in an
-     XRF experiment and returns those that are below the given photon energy.
+     XRF experiment and returns those that are within the fittable region of the spectrum.
     Args:
-        energy (float): The energy level to filter the elements by, expressed in
-         electron volts (eV).
+        cutoff_energy (float): The energy cutoff defining the scattering region of the
+         spectrum. Used as an upper limit for element filtering. Expressed in electron
+         volts (eV).
+        first_channel_energy (float): The energy level of the first channel. Used as a
+          lower limit for element filtering. Expressed in electron volts (eV).
         beamline (str): The beamline that the MCA spectrum was recorded on.
 
     Returns:
@@ -200,7 +201,10 @@ def parse_elements(cutoff_energy, beamline):
     def _check_edge(symbol, edge):
         Z = xrl.SymbolToAtomicNumber(symbol)
         shell = edge_mapper[edge]
-        return float(cutoff_energy) > xrl.LineEnergy(Z, shell) * 1000.0
+        return (
+            float(cutoff_energy) > xrl.LineEnergy(Z, shell) * 1000.0
+            and float(first_channel_energy) < xrl.LineEnergy(Z, shell) * 1000.0
+        )
 
     if beamline == "i23":
         elements.update(i23_elements)
@@ -243,9 +247,8 @@ def spectrum_to_mca(channel_counts, calib, output_file, input_file, selection):
 
 
 def plot_fluorescence_spectrum(
-    out_file, input_file, channel_energy, channel_counts, beam_energy, offset
+    out_file, input_file, channel_energy, channel_counts, beam_energy, cutoff_energy
 ):
-    cutoff_energy = beam_energy - offset
     i_cutoff = np.argmax(channel_energy > cutoff_energy)
 
     # Create plot of spectrum, split by the cutoff
@@ -253,7 +256,7 @@ def plot_fluorescence_spectrum(
     plt.title(f"Fluorescence Spectrum {input_file}", fontsize=12)
     plt.xlabel("Energy (eV)", fontsize=12)
     plt.ylabel("Number of Counts", fontsize=12)
-    plt.xlim(0, beam_energy)
+    plt.xlim(channel_energy[0], beam_energy)
     plt.minorticks_on()
     plt.grid(True, which="both", linestyle="--", linewidth=0.5)
     plt.plot(
@@ -272,7 +275,8 @@ def plot_fluorescence_spectrum(
         linewidth=0.5,
         color="deepskyblue",
     )
-    plt.axvline(x=cutoff_energy, color="black", linestyle="--", linewidth=1)
+    if i_cutoff:
+        plt.axvline(x=cutoff_energy, color="black", linestyle="--", linewidth=1)
     plt.savefig(out_file, format="png")
 
 
@@ -368,7 +372,6 @@ def run_auto_pymca(
         raise FileNotFoundError(f"Config file '{src_cfg_file}' does not exist")
 
     energy_kev = float(beam_energy) / 1000.0
-    cutoff_offset = 1000
     peaks = None
 
     output_dir = visit_dir / "processed" / "pymca" / rel_dir_path
@@ -381,21 +384,34 @@ def run_auto_pymca(
     results_dir.mkdir(parents=True, exist_ok=True)
 
     shutil.copyfile(src_data_file, data_file)
+    # Set a cutoff region 500eV below Compton edge to exclude scattering peaks from fit
+    compton_edge = beam_energy / (1 + 2 * beam_energy / 5.110e5)
+    cutoff_energy = compton_edge - 500
 
-    cutoff_energy = beam_energy - cutoff_offset
-    peaks = parse_elements(cutoff_energy, beamline)
+    config_dict = ConfigDict.ConfigDict()
+    config_dict.read(src_cfg_file)
+
+    first_channel_energy = config_dict["detector"]["zero"] * 1000.0
+
+    peaks = parse_elements(cutoff_energy, first_channel_energy, beamline)
 
     if not data_file.exists():
         raise FileNotFoundError(f"File {data_file} does not exist")
 
-    # Extract, edit and write new config to file
-    config_dict = ConfigDict.ConfigDict()
-    config_dict.read(src_cfg_file)
+    # Edit and write new config to file
     for main_dict, sub_dict in config_changes.items():
         config_dict[main_dict].update(sub_dict)
     if not config_dict.get("peaks"):
         config_dict["peaks"] = peaks
     config_dict["fit"]["energy"][0] = energy_kev
+    fit_xmax = config_dict["fit"]["xmax"]
+    cutoff_energy_kev = cutoff_energy / 1000.0
+    cutoff_channel = int(
+        (cutoff_energy_kev - config_dict["detector"]["zero"])
+        / config_dict["detector"]["gain"]
+    )
+    if cutoff_channel < fit_xmax:
+        config_dict["fit"]["xmax"] = cutoff_channel
     config_dict.write(cfg_file)
 
     if not cfg_file.exists():
@@ -433,7 +449,7 @@ def run_auto_pymca(
         channel_energy,
         channel_counts,
         beam_energy,
-        cutoff_offset,
+        cutoff_energy,
     )
 
     snapshot_dir = src_data_dir / "jpegs" / rel_dir_path
