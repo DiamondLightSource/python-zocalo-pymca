@@ -412,10 +412,11 @@ def run_auto_pymca(
     )
     if cutoff_channel < fit_xmax:
         config_dict["fit"]["xmax"] = cutoff_channel
+    config_dict["fit"]["scatterflag"] = 0
     config_dict.write(cfg_file)
 
     if not cfg_file.exists():
-        raise FileNotFoundError(f"File {cfg_file} does not exist")
+        raise FileNotFoundError(f"Failed to write config file to {cfg_file}")
 
     # Create a batch fit object
     pymca_batch_fit_obj = McaAdvancedFitBatch.McaAdvancedFitBatch(
