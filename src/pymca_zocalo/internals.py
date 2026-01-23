@@ -13,7 +13,7 @@ from PyMca5.PyMca import McaAdvancedFitBatch
 from PyMca5.PyMcaIO import ConfigDict
 
 
-def parse_raw_fluoro(channel_energy, channel_counts, beam_energy, peaks, offset):
+def parse_raw_fluoro(channel_energy, channel_counts, peaks, cutoff_channel):
     """Calculate total and background counts from raw spectrum, then
     return results as formatted text for top 5 fitted peaks if there
     is sufficient signal above the background"""
@@ -28,13 +28,11 @@ def parse_raw_fluoro(channel_energy, channel_counts, beam_energy, peaks, offset)
         "L": xrl.L3M5_LINE,
     }
     # Get total counts and background counts up to a cutoff energy
-    cutoff_energy = beam_energy - offset
-    cutoff_idx = np.argmax(channel_energy > cutoff_energy)
-    if not cutoff_idx:
-        cutoff_idx = len(channel_energy)
-    total_count = np.sum(channel_counts[0:cutoff_idx])
+    if not cutoff_channel:
+        cutoff_channel = len(channel_energy)
+    total_count = np.sum(channel_counts[0:cutoff_channel])
     # Maximum of 2 counts per channel contribute to background
-    background_count = np.sum(np.minimum(2, channel_counts[0:cutoff_idx]))
+    background_count = np.sum(np.minimum(2, channel_counts[0:cutoff_channel]))
 
     if (total_count - background_count) > 100:
         if len(peaks):
@@ -330,7 +328,6 @@ def run_auto_pymca(
 
     config_changes = {}
     energy_kev = float(beam_energy) / 1000.0
-    cutoff_offset = 1000
 
     if h5py.is_hdf5(src_data_file):
         src_cfg_file = resources.files("pymca_zocalo.data") / "pymca_new.cfg"
@@ -345,9 +342,6 @@ def run_auto_pymca(
         config_changes["detector"] = {
             "zero": calibration["zero"],
             "gain": calibration["gain"],
-        }
-        config_changes["fit"] = {
-            "xmax": np.argmax(channel_energy > beam_energy - cutoff_offset)
         }
 
     elif src_data_file.endswith((".dat", ".mca")):
@@ -370,9 +364,6 @@ def run_auto_pymca(
 
     if not src_cfg_file.exists():
         raise FileNotFoundError(f"Config file '{src_cfg_file}' does not exist")
-
-    energy_kev = float(beam_energy) / 1000.0
-    peaks = None
 
     output_dir = visit_dir / "processed" / "pymca" / rel_dir_path
     data_dir = output_dir / "data"
@@ -439,7 +430,7 @@ def run_auto_pymca(
         f.write(results_txt)
 
     pymca_output = parse_raw_fluoro(
-        channel_energy, channel_counts, beam_energy, fitted_peaks, cutoff_offset
+        channel_energy, channel_counts, beam_energy, fitted_peaks, cutoff_channel
     )
 
     plot_output_file = src_data_dir / f"{filename_stem}.png"
