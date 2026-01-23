@@ -430,7 +430,7 @@ def run_auto_pymca(
         f.write(results_txt)
 
     pymca_output = parse_raw_fluoro(
-        channel_energy, channel_counts, beam_energy, fitted_peaks, cutoff_channel
+        channel_energy, channel_counts, fitted_peaks, cutoff_channel
     )
 
     plot_output_file = src_data_dir / f"{filename_stem}.png"
