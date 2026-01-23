@@ -2,9 +2,9 @@ FROM debian:12-slim
 
 RUN apt-get update && apt-get install -y curl bzip2
 # install miniconda
-RUN curl -LO https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
-    bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/miniconda && \
-    rm Miniconda3-latest-Linux-x86_64.sh
+RUN curl -LO "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh" && \
+    bash Miniforge3-Linux-x86_64.sh -b -p /opt/miniconda && \
+    rm Miniforge3-Linux-x86_64.sh
 # make non-activate conda commands available
 COPY requirements.txt .
 RUN /opt/miniconda/bin/conda create -yp /opt/pymca -c conda-forge --file requirements.txt python
