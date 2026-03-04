@@ -4,7 +4,6 @@ from pathlib import Path
 
 import numpy as np
 import pymca_zocalo.internals as internals
-from pytest import raises
 
 
 def test_GIVEN_examplar_data_in_h5file_WHEN_run_auto_pymca_called_THEN_produces_expected_files(
@@ -112,10 +111,9 @@ def test_GIVEN_examplar_data_in_dat_format_WHEN_run_auto_pymca_called_THEN_produ
 
 
 def test_GIVEN_fitted_peaks_WHEN_call_parse_raw_fluoro_THEN_get_expected_output():
-    channel_energy = np.arange(0, 6, dtype=float)
     channel_counts = np.array([250.0, 1.1, 250.0, 250.0, 250.0])
-    offset = 1.0
-    beam_energy = 5.0
+    cutoff_channel = 1600
+
     peaks = [
         ("Se-K", 500.0, 40.0),
         ("Fe-K", 250.0, 20.0),
@@ -125,9 +123,7 @@ def test_GIVEN_fitted_peaks_WHEN_call_parse_raw_fluoro_THEN_get_expected_output(
         ("Hg-L", 10.0, 8.0),
     ]
 
-    output_txt = internals.parse_raw_fluoro(
-        channel_energy, channel_counts, beam_energy, peaks, offset
-    )
+    output_txt = internals.parse_raw_fluoro(channel_counts, peaks, cutoff_channel)
 
     assert (
         "Element\tCounts\t%age\tExpected Emission Energies" in output_txt
@@ -139,10 +135,8 @@ def test_GIVEN_fitted_peaks_WHEN_call_parse_raw_fluoro_THEN_get_expected_output(
 
 
 def test_GIVEN_low_counts_WHEN_call_parse_raw_fluoro_THEN_output_warning():
-    channel_energy = np.arange(0, 6, dtype=float)
     channel_counts = np.array([4.0, 1.1, 4.0, 4.0, 4.0])
-    offset = 1.0
-    beam_energy = 5.0
+    cutoff_channel = 1600
     peaks = [
         ("Se-K", 500.0, 40.0),
         ("Fe-K", 250.0, 20.0),
@@ -152,9 +146,7 @@ def test_GIVEN_low_counts_WHEN_call_parse_raw_fluoro_THEN_output_warning():
         ("Hg-L", 10.0, 8.0),
     ]
 
-    output_txt = internals.parse_raw_fluoro(
-        channel_energy, channel_counts, beam_energy, peaks, offset
-    )
+    output_txt = internals.parse_raw_fluoro(channel_counts, peaks, cutoff_channel)
     assert (
         "No fluorescence peaks detected" in output_txt
     ), "No peaks warning message not written"
@@ -164,37 +156,13 @@ def test_GIVEN_low_counts_WHEN_call_parse_raw_fluoro_THEN_output_warning():
 
 
 def test_GIVEN_no_peaks_WHEN_call_parse_raw_fluoro_THEN_output_warning():
-    channel_energy = np.arange(0, 6, dtype=float)
     channel_counts = np.array([250.0, 1.1, 250.0, 250.0, 250.0])
-    offset = 1.0
-    beam_energy = 5.0
+    cutoff_channel = 1600
     peaks = []
 
-    output_txt = internals.parse_raw_fluoro(
-        channel_energy, channel_counts, beam_energy, peaks, offset
-    )
+    output_txt = internals.parse_raw_fluoro(channel_counts, peaks, cutoff_channel)
     assert (
         "Counts found but no peaks of select elements fitted" in output_txt
     ), "Warning message not written"
     assert "Counts (total): 1001.1" in output_txt, "Incorrect total counts"
     assert "(background): 9.1" in output_txt, "Incorrect background counts"
-
-
-def test_GIVEN_unsuitable_cutoff_WHEN_call_parse_raw_fluoro_THEN_raise_ValueError():
-    channel_energy = np.arange(0, 6, dtype=float)
-    channel_counts = np.array([250.0, 1.1, 250.0, 250.0, 250.0])
-    offset = 6.0
-    beam_energy = 5.0
-    peaks = [
-        ("Se-K", 500.0, 40.0),
-        ("Fe-K", 250.0, 20.0),
-        ("Pb-L", 50.0, 10.0),
-        ("Au-L", 40.0, 15.0),
-        ("Pt-L", 30.0, 14.0),
-        ("Hg-L", 10.0, 8.0),
-    ]
-
-    with raises(ValueError):
-        internals.parse_raw_fluoro(
-            channel_energy, channel_counts, beam_energy, peaks, offset
-        )
