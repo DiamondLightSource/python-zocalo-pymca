@@ -223,7 +223,7 @@ def spectrum_to_mca(channel_counts, calib, output_file, input_file, selection):
         f"#S 1 {input_file} {selection['entry']}",
         f"#D {timestamp}",
         "#@MCA %16C",
-        f"#@CHANN {len(channel_counts)} 0 {len(channel_counts)-1} 1",
+        f"#@CHANN {len(channel_counts)} 0 {len(channel_counts) - 1} 1",
         f"#@CALIB {calib['zero']} {calib['gain']} 0.0",
     ]
     header = "\n".join(header)
@@ -401,7 +401,9 @@ def run_auto_pymca(
     )
     if cutoff_channel < fit_xmax:
         config_dict["fit"]["xmax"] = cutoff_channel
+    # Do not fit scattering or escape peaks - these are not of interest and can cause issues with fitting if present
     config_dict["fit"]["scatterflag"] = 0
+    config_dict["fit"]["escapeflag"] = 0
     config_dict.write(cfg_file)
 
     if not cfg_file.exists():
@@ -475,7 +477,7 @@ table.table2 td {{ border-style: none; font-size: 80%; padding: 2px;}}
 </table></td></tr>
 <tr><td>Automated PyMca results<br /><pre>{pymca_output}</pre><a href="http://www.diamond.ac.uk/dms/MX/Common/Interpreting-AutoPyMCA/Interpreting%20AutoPyMCA.pdf">Guide to AutoPyMCA</a> (pdf)</td></tr>
 <tr><td><img src="{plot_output_file}" /></td></tr>
-<tr><td><img src="{snapshot_dir/snapshot_filename}" alt="Snapshot not taken" width=640 /></td></tr></table>
+<tr><td><img src="{snapshot_dir / snapshot_filename}" alt="Snapshot not taken" width=640 /></td></tr></table>
 """
 
     with open(html_file, "w") as f:
