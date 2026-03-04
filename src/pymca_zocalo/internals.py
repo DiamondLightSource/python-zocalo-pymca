@@ -13,7 +13,7 @@ from PyMca5.PyMca import McaAdvancedFitBatch
 from PyMca5.PyMcaIO import ConfigDict
 
 
-def parse_raw_fluoro(channel_energy, channel_counts, peaks, cutoff_channel):
+def parse_raw_fluoro(channel_counts, peaks, cutoff_channel):
     """Calculate total and background counts from raw spectrum, then
     return results as formatted text for top 5 fitted peaks if there
     is sufficient signal above the background"""
@@ -28,8 +28,6 @@ def parse_raw_fluoro(channel_energy, channel_counts, peaks, cutoff_channel):
         "L": xrl.L3M5_LINE,
     }
     # Get total counts and background counts up to a cutoff energy
-    if not cutoff_channel:
-        cutoff_channel = len(channel_energy)
     total_count = np.sum(channel_counts[0:cutoff_channel])
     # Maximum of 2 counts per channel contribute to background
     background_count = np.sum(np.minimum(2, channel_counts[0:cutoff_channel]))
@@ -433,9 +431,7 @@ def run_auto_pymca(
     with open(results_file, "w") as f:
         f.write(results_txt)
 
-    pymca_output = parse_raw_fluoro(
-        channel_energy, channel_counts, fitted_peaks, cutoff_channel
-    )
+    pymca_output = parse_raw_fluoro(channel_counts, fitted_peaks, cutoff_channel)
 
     plot_output_file = src_data_dir / f"{filename_stem}.png"
 
