@@ -424,8 +424,12 @@ def run_auto_pymca(
     fitted_peaks = parse_spec_fit(fit_data_file)
 
     results_file = output_dir / f"{filename_stem}.results.dat"
-    results_txt = [f"{peak[0]} {peak[1]} {peak[2]}" for peak in fitted_peaks]
-    results_txt = "\n".join(results_txt)
+    header_txt = [
+        f"# COMPTON_CUTOFF(eV): {cutoff_energy:.2f}",
+        "# COLUMN_HEADERS: Element-Edge Counts Sigma",
+    ]
+    results_txt = [f"{peak[0]} {peak[1]:.2f} {peak[2]:.2f}" for peak in fitted_peaks]
+    results_txt = "\n".join(header_txt + results_txt)
     with open(results_file, "w") as f:
         f.write(results_txt)
 
