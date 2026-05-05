@@ -378,7 +378,7 @@ def run_auto_pymca(
     cutoff_energy = compton_edge - 500
 
     config_dict = ConfigDict.ConfigDict()
-    config_dict.read(src_cfg_file)
+    config_dict.read(src_cfg_file.as_posix())
 
     first_channel_energy = config_dict["detector"]["zero"] * 1000.0
 
